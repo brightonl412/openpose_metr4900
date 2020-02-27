@@ -45,8 +45,15 @@ def main():
         opWrapper = op.WrapperPython()
         opWrapper.configure(params)
         opWrapper.start()
+
+        # Process Image
         datum = op.Datum()
+        imageToProcess = cv2.imread("../openpose/examples/media/COCO_val2014_000000000192.jpg")
+        datum.cvInputData = imageToProcess
         opWrapper.emplaceAndPop([datum])
+
+        # Display Image
+        print("Body keypoints: \n" + str(datum.poseKeypoints))
         cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", datum.cvOutputData)
         cv2.waitKey(0)
 
