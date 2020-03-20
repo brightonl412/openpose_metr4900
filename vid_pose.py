@@ -28,7 +28,7 @@ def main():
         params = dict()
         #params["model_folder"] = "../../../models/"
         params["model_folder"] = "../openpose/models/"
-        params["number_people_max"] = 1
+        #params["number_people_max"] = 1
         #save data as json to folder
         #Find a better way to do this. Currently saves each frame as json
         params["write_json"] = "json_output"

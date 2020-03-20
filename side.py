@@ -14,20 +14,33 @@ except ImportError as e:
     print('Error: OpenPose library could not be found. Did you enable `BUILD_PYTHON` in CMake and have this Python script in the right folder?')
     raise e
 #import openpose
+gender = "male"
 
-body_perc = {
-  "head": 0.05,
-  "neck": 0.03,
-  "body": 0.27,
-  "pelvis": 0.11,
-  "shoulder": 0.05,
-  "arm": 0.03,
-  "forearm": 0.02,
-  "hand": 0.01,
-  "thigh": 0.1,
-  "shank": 0.04,
-  "foot": 0.02
-}
+if gender == "male":
+    body_perc = {
+        "head": 0.0694,
+        "body": 0.3229,
+        "pelvis": 0.1117,
+        "arm": 0.0271,
+        "forearm": 0.0162,
+        "hand": 0.0061,
+        "thigh": 0.1416,
+        "shank": 0.0433,
+        "foot": 0.0137
+    }
+else:
+    body_perc = {
+        "head": 0.0668,
+        "body": 0.301,
+        "pelvis": 0.1247,
+        "arm": 0.0255,
+        "forearm": 0.0138,
+        "hand": 0.0056,
+        "thigh": 0.1478,
+        "shank": 0.0481,
+        "foot": 0.0129
+    }
+
 
 
 
@@ -59,7 +72,7 @@ def main():
 
         # Process Image
         datum = op.Datum()
-        imageToProcess = cv2.imread("media/front2.jpg")
+        imageToProcess = cv2.imread("media/side2.jpg")
         #Resize to show on screen maybe change to do at end, when displaying so that we have high acc 
         imageToProcess = cv2.resize(imageToProcess, (480,960))
         datum.cvInputData = imageToProcess
@@ -70,10 +83,8 @@ def main():
         
         #Change to tuple
         R_ear = [datum.poseKeypoints[0][17][0],datum.poseKeypoints[0][17][1]]
-        neck = [datum.poseKeypoints[0][1][0],datum.poseKeypoints[0][1][1]]
         body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
         pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
-        R_shoulder = [datum.poseKeypoints[0][2][0],datum.poseKeypoints[0][2][1]]
         R_arm = [(datum.poseKeypoints[0][2][0] + datum.poseKeypoints[0][3][0])/2, (datum.poseKeypoints[0][2][1] +datum.poseKeypoints[0][3][1])/2]
         R_forearm = [(datum.poseKeypoints[0][3][0] + datum.poseKeypoints[0][4][0])/2, (datum.poseKeypoints[0][3][1] +datum.poseKeypoints[0][4][1])/2]
         R_hand = [datum.poseKeypoints[0][4][0],datum.poseKeypoints[0][4][1]]
@@ -82,7 +93,6 @@ def main():
         R_foot = [(datum.poseKeypoints[0][22][0] + datum.poseKeypoints[0][24][0])/2, (datum.poseKeypoints[0][22][1] +datum.poseKeypoints[0][24][1])/2]
         
         L_ear = [datum.poseKeypoints[0][18][0],datum.poseKeypoints[0][18][1]]
-        L_shoulder = [datum.poseKeypoints[0][5][0],datum.poseKeypoints[0][5][1]]
         L_arm = [(datum.poseKeypoints[0][5][0] + datum.poseKeypoints[0][6][0])/2, (datum.poseKeypoints[0][5][1] +datum.poseKeypoints[0][6][1])/2]
         L_forearm = [(datum.poseKeypoints[0][6][0] + datum.poseKeypoints[0][7][0])/2, (datum.poseKeypoints[0][6][1] +datum.poseKeypoints[0][7][1])/2]
         L_hand = [datum.poseKeypoints[0][7][0],datum.poseKeypoints[0][7][1]]
@@ -90,15 +100,10 @@ def main():
         L_shank = [(datum.poseKeypoints[0][13][0] + datum.poseKeypoints[0][14][0])/2, (datum.poseKeypoints[0][13][1] +datum.poseKeypoints[0][14][1])/2]
         L_foot = [(datum.poseKeypoints[0][21][0] + datum.poseKeypoints[0][19][0])/2, (datum.poseKeypoints[0][21][1] +datum.poseKeypoints[0][19][1])/2]
         
-        #Need to add more error checking to see if body part missing
-        #L_arm = [0,0]
         print("right ear", R_ear)
         print("right ear", L_ear)
-        print("neck", neck)
         print("body", body)
         print("pelvis", pelvis)
-        print("right shoulder", R_shoulder)
-        print("left shoulder", L_shoulder)
         print("right arm", R_arm)
         print("left arm", L_arm)
         print("right forearm", R_forearm)
@@ -120,12 +125,6 @@ def main():
             COM_x += L_ear[0] * body_perc["head"]
         else:
             COM_x += R_ear[0] * body_perc["head"]
-             
-        
-        if neck[0] == 0:
-            print("Error- neck")
-        else:
-             COM_x += neck[0] * body_perc["neck"]
 
         if body[0] == 0:
             print("Error- body")
@@ -136,15 +135,6 @@ def main():
             print("Error- pelvis")
         else:
             COM_x += pelvis[0]* body_perc["pelvis"]
-
-        if R_shoulder[0] == 0 or L_shoulder[0] == 0:
-            shoulders = max(R_shoulder[0],L_shoulder[0])
-            if shoulders == 0:
-                print("Error- shoulder")
-            else:
-                COM_x += shoulders * body_perc["shoulder"] * 2
-        else:
-            COM_x += (R_shoulder[0] + L_shoulder[0]) * body_perc["shoulder"]
 
         if R_arm[0] == 0 or L_arm[0] == 0:
             arms = max(R_arm[0],L_arm[0])
@@ -201,19 +191,7 @@ def main():
                 COM_x += foots * body_perc["foot"] * 2
         else:
           COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
-        # COM_x = \
-        #     head[0]*0.05 + \
-        #     neck[0]*0.03 + \
-        #     body[0]*0.27 + \
-        #     pelvis[0]*0.11 + \
-        #     shoulder[0]*0.05*2 + \
-        #     arm[0]*0.03*2 + \
-        #     forearm[0]*0.02*2 + \
-        #     hand[0]*0.01*2 + \
-        #     thigh[0]*0.1*2 + \
-        #     shank[0]*0.04*2 + \
-        #     foot[0]*0.02*2
-        
+
         COM_y = 0 
         if R_ear[1] == 0 and L_ear[1] == 0:
             print("Error- head")
@@ -221,11 +199,6 @@ def main():
             COM_x += L_ear[1] * body_perc["head"]
         else:
             COM_x += R_ear[1] * body_perc["head"]
-        
-        if neck[1] == 0:
-          print("Error- neck")
-        else:
-          COM_y += neck[1]* body_perc["neck"]
 
         if body[1] == 0:
           print("Error- body")
@@ -236,15 +209,6 @@ def main():
           print("Error- pelvis")
         else:
           COM_y += pelvis[1]* body_perc["pelvis"]
-
-        if R_shoulder[1] == 0 or L_shoulder[1] == 0:
-          shoulders = max(R_shoulder[1],L_shoulder[1])
-          if shoulders == 0:
-            print("Error- shoulder")
-          else:
-            COM_y += shoulders * body_perc["shoulder"] * 2
-        else:
-          COM_y += (R_shoulder[1] + L_shoulder[1]) * body_perc["shoulder"]
 
         if R_arm[1] == 0 or L_arm[1] == 0:
           arms = max(R_arm[1],L_arm[1])
@@ -315,7 +279,7 @@ def main():
         print(COM_y)
 
         COM = (int(COM_x), int(COM_y))
-        radius = 20
+        radius = 10
         # Blue color in BGR 
         color = (255, 0, 0) 
         thickness = 2
