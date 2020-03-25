@@ -45,16 +45,32 @@ def main():
                 key = curr_item.replace('-','')
                 if key not in params: params[key] = next_item
 
-
-        cap = cv2.VideoCapture('video.avi')
         opWrapper = op.WrapperPython()
         opWrapper.configure(params)
         opWrapper.start()
 
-        #Setup video writer
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter('output.avi',fourcc,20.0,(1280,720))
+        #Video location as a string
+        vid_location = "media/landscape_1.mp4"
+        #vid_location = "video.avi"
+        cap = cv2.VideoCapture(vid_location)
+        
+        width = cap.get(3)
+        height = cap.get(4)
+        fps = cap.get(5)
+
         font = cv2.FONT_HERSHEY_SIMPLEX
+        
+        #Find Video Format
+        video_type = vid_location.split(".")[-1]
+        if video_type == "mp4":
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter('media/output.mp4',fourcc,fps,(int(width),int(height)))
+        elif video_type == "avi":
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            out = cv2.VideoWriter('media/output.avi',fourcc,fps,(int(width),int(height)))
+        else:
+            print("Video format not supported")
+            sys.exit(-1)
 
         frame_num = 0
         sway_tot = 0
@@ -65,12 +81,10 @@ def main():
             #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
             if ret == True:
-
                 # Process Image
                 datum = op.Datum()
                 imageToProcess = frame
 
-                
                 frame_num += 1
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, (255,255,255), 1)
 
@@ -115,6 +129,7 @@ def main():
         cap.release()
         out.release()
         cv2.destroyAllWindows
+
 
     except Exception as e:
         print(e)
