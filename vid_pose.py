@@ -16,6 +16,35 @@ except ImportError as e:
     raise e
 #import openpose
 
+def set_gender(gender):
+    if gender == "male":
+        return {
+            "head": 0.0694,
+            "body": 0.3229,
+            "pelvis": 0.1117,
+            "arm": 0.0271,
+            "forearm": 0.0162,
+            "hand": 0.0061,
+            "thigh": 0.1416,
+            "shank": 0.0433,
+            "foot": 0.0137
+        }
+    elif gender == "female":
+        return {
+            "head": 0.0668,
+            "body": 0.301,
+            "pelvis": 0.1247,
+            "arm": 0.0255,
+            "forearm": 0.0138,
+            "hand": 0.0056,
+            "thigh": 0.1478,
+            "shank": 0.0481,
+            "foot": 0.0129
+        }
+    else:
+        print("Not a valid gender")
+        sys.exit(-1)
+    
 
 def main():
     try:
@@ -49,6 +78,9 @@ def main():
         opWrapper.configure(params)
         opWrapper.start()
 
+        #Set gender of patient
+        body_perc = set_gender("male")
+
         #Video location as a string
         vid_location = "media/landscape_1.mp4"
         #vid_location = "video.avi"
@@ -73,7 +105,6 @@ def main():
             sys.exit(-1)
 
         frame_num = 0
-        sway_tot = 0
         unsuccessful_frames = 0
 
         while(cap.isOpened()):
@@ -87,32 +118,186 @@ def main():
 
                 frame_num += 1
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, (255,255,255), 1)
-
                 datum.cvInputData = imageToProcess
+                opWrapper.emplaceAndPop([datum])
+                
+                #Change to tuple
+                R_ear = [datum.poseKeypoints[0][17][0],datum.poseKeypoints[0][17][1]]
+                body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
+                pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
+                R_arm = [(datum.poseKeypoints[0][2][0] + datum.poseKeypoints[0][3][0])/2, (datum.poseKeypoints[0][2][1] +datum.poseKeypoints[0][3][1])/2]
+                R_forearm = [(datum.poseKeypoints[0][3][0] + datum.poseKeypoints[0][4][0])/2, (datum.poseKeypoints[0][3][1] +datum.poseKeypoints[0][4][1])/2]
+                R_hand = [datum.poseKeypoints[0][4][0],datum.poseKeypoints[0][4][1]]
+                R_thigh = [(datum.poseKeypoints[0][9][0] + datum.poseKeypoints[0][10][0])/2, (datum.poseKeypoints[0][9][1] +datum.poseKeypoints[0][10][1])/2]
+                R_shank = [(datum.poseKeypoints[0][10][0] + datum.poseKeypoints[0][11][0])/2, (datum.poseKeypoints[0][10][1] +datum.poseKeypoints[0][11][1])/2]
+                R_foot = [(datum.poseKeypoints[0][22][0] + datum.poseKeypoints[0][24][0])/2, (datum.poseKeypoints[0][22][1] +datum.poseKeypoints[0][24][1])/2]
+                
+                L_ear = [datum.poseKeypoints[0][18][0],datum.poseKeypoints[0][18][1]]
+                L_arm = [(datum.poseKeypoints[0][5][0] + datum.poseKeypoints[0][6][0])/2, (datum.poseKeypoints[0][5][1] +datum.poseKeypoints[0][6][1])/2]
+                L_forearm = [(datum.poseKeypoints[0][6][0] + datum.poseKeypoints[0][7][0])/2, (datum.poseKeypoints[0][6][1] +datum.poseKeypoints[0][7][1])/2]
+                L_hand = [datum.poseKeypoints[0][7][0],datum.poseKeypoints[0][7][1]]
+                L_thigh = [(datum.poseKeypoints[0][12][0] + datum.poseKeypoints[0][13][0])/2, (datum.poseKeypoints[0][12][1] +datum.poseKeypoints[0][13][1])/2]
+                L_shank = [(datum.poseKeypoints[0][13][0] + datum.poseKeypoints[0][14][0])/2, (datum.poseKeypoints[0][13][1] +datum.poseKeypoints[0][14][1])/2]
+                L_foot = [(datum.poseKeypoints[0][21][0] + datum.poseKeypoints[0][19][0])/2, (datum.poseKeypoints[0][21][1] +datum.poseKeypoints[0][19][1])/2]
 
+                COM_x = 0 
+                if R_ear[0] == 0 and L_ear[0] == 0:
+                    print("Error- head")
+                elif R_ear[0] == 0:
+                    COM_x += L_ear[0] * body_perc["head"]
+                else:
+                    COM_x += R_ear[0] * body_perc["head"]
+
+                if body[0] == 0:
+                    print("Error- body")
+                else:
+                    COM_x += body[0] * body_perc["body"]
+
+                if pelvis[0] == 0:
+                    print("Error- pelvis")
+                else:
+                    COM_x += pelvis[0]* body_perc["pelvis"]
+
+                if R_arm[0] == 0 or L_arm[0] == 0:
+                    arms = max(R_arm[0],L_arm[0])
+                    if arms == 0:
+                        print("Error- arm")
+                    else:
+                        COM_x += arms * body_perc["arm"] * 2
+                else:
+                    COM_x += (R_arm[0] + L_arm[0]) * body_perc["arm"]
+
+                
+                if R_forearm[0] == 0 or (L_forearm[0]) == 0:
+                    forearms = max(R_forearm[0],L_forearm[0])
+                    if forearms == 0:
+                        print("Error- forearm")
+                    else:
+                        COM_x += forearms * body_perc["forearm"] * 2
+                else:
+                    COM_x += (R_forearm[0] + L_forearm[0]) * body_perc["forearm"]
+
+                if R_hand[0] == 0 or L_hand[0] == 0:
+                    hands = max(R_hand[0],L_hand[0])
+                    if hands == 0:
+                        print("Error- arm")
+                    else:
+                        COM_x += hands * body_perc["hand"] * 2
+                else:
+                    COM_x += (R_hand[0] + L_hand[0]) * body_perc["hand"]
+                
+                if R_thigh[0] == 0 or L_thigh[0] == 0:
+                    thighs = max(R_thigh[0],L_thigh[0])
+                    if thighs == 0:
+                        print("Error- thigh")
+                    else:
+                        COM_x += thighs * body_perc["thigh"] * 2
+                else:
+                    COM_x += (R_thigh[0] + L_thigh[0]) * body_perc["thigh"]
+
+                if R_shank[0] == 0 or L_shank[0] == 0:
+                    shanks = max(R_shank[0],L_shank[0])
+                    if shanks == 0:
+                        print("Error- shank")
+                    else:
+                        COM_x += shanks * body_perc["shank"] * 2
+                else:
+                    COM_x += (R_shank[0] + L_shank[0]) * body_perc["shank"]
+
+                if R_foot[0] == 0 or L_foot[0] == 0:
+                    foots = max(R_foot[0],L_foot[0])
+                    if foots == 0:
+                        print("Error- foot")
+                    else:
+                        COM_x += foots * body_perc["foot"] * 2
+                else:
+                    COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
+
+                COM_y = 0 
+                if R_ear[1] == 0 and L_ear[1] == 0:
+                    print("Error- head")
+                elif R_ear[1] == 0:
+                    COM_x += L_ear[1] * body_perc["head"]
+                else:
+                    COM_x += R_ear[1] * body_perc["head"]
+
+                if body[1] == 0:
+                    print("Error- body")
+                else:
+                    COM_y += body[1]* body_perc["body"]
+
+                if pelvis[1] == 0:
+                    print("Error- pelvis")
+                else:
+                    COM_y += pelvis[1]* body_perc["pelvis"]
+
+                if R_arm[1] == 0 or L_arm[1] == 0:
+                    arms = max(R_arm[1],L_arm[1])
+                    if arms == 0:
+                        print("Error- arm")
+                    else:
+                        COM_y += arms * body_perc["arm"] * 2
+                else:
+                    COM_y += (R_arm[1] + L_arm[1]) * body_perc["arm"]
+
+                if R_forearm[1] == 0 or L_forearm[1] == 0:
+                    forearms = max(R_forearm[1],L_forearm[1])
+                    if forearms == 0:
+                        print("Error- forearm")
+                    else:
+                        COM_y += forearms * body_perc["forearm"] * 2
+                else:
+                    COM_y += (R_forearm[1] + L_forearm[1]) * body_perc["forearm"]
+
+                if R_hand[1] == 0 or L_hand[1] == 0:
+                    hands = max(R_hand[1],L_hand[1])
+                    if hands == 0:
+                        print("Error- hand")
+                    else:
+                        COM_y += hands * body_perc["hand"] * 2
+                else:
+                    COM_y += (R_hand[1] + L_hand[1]) * body_perc["hand"]
+                
+                if R_thigh[1] == 0 or L_thigh[1] == 0:
+                    thighs = max(R_thigh[1],L_thigh[1])
+                    if thighs == 0:
+                        print("Error- thigh")
+                    else:
+                        COM_y += thighs * body_perc["thigh"] * 2
+                else:
+                    COM_y += (R_thigh[1] + L_thigh[1]) * body_perc["thigh"]
+
+                if R_shank[1] == 0 or L_shank[1] == 0:
+                    shanks = max(R_shank[1],L_shank[1])
+                    if shanks == 0:
+                        print("Error- shank")
+                    else:
+                        COM_y += shanks * body_perc["shank"] * 2
+                else:
+                    COM_y += (R_shank[1] + L_shank[1]) * body_perc["shank"]
+
+                if R_foot[1] == 0 or L_foot[1] == 0:
+                    foots = max(R_foot[1],L_foot[1])
+                    if foots == 0:
+                        print("Error- foot")
+                    else:
+                        COM_y += foots * body_perc["foot"] * 2
+                else:
+                    COM_y += (R_foot[1] + L_foot[1]) * body_perc["foot"]
+
+                COM = (int(COM_x), int(COM_y))
+                radius = 10
+                # Blue color in BGR 
+                color = (255, 0, 0) 
+                thickness = 2
+                #Add COM circle to image
+                cv2.circle(imageToProcess, COM, radius, color, thickness)
+                
+                # Find better way to readd data to datum
+                datum.cvInputData = imageToProcess
                 opWrapper.emplaceAndPop([datum])
 
-                # Display Image
-                print("Body keypoints: \n" + str(datum.poseKeypoints))
                 cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", datum.cvOutputData)
-
-                #Get x difference/sway between nose[0]/neck[1] with midhip[8]
-                nose_x = datum.poseKeypoints[0][0][0]
-                neck_x = datum.poseKeypoints[0][1][0]
-                midhip_x = datum.poseKeypoints[0][8][0]
-                # part not found
-                # maybe change to confidence level == 0 because technically part could just be on left edge 
-                if (nose_x == 0 or neck_x == 0 or midhip_x == 0):
-                    unsuccessful_frames += 1
-                    print("A part not found- frame not used")
-                else:
-                    print("nose", nose_x)
-                    print("neck", neck_x)
-                    print("midhip", midhip_x)
-                    sway = abs(nose_x - midhip_x)
-                    print("frame sway", sway)
-                    sway_tot += sway
-                
                 # Save frame to output video
                 out.write(datum.cvOutputData)
 
@@ -120,12 +305,6 @@ def main():
                     break
             else:
                 break
-        sway_avg = sway_tot/(frame_num - unsuccessful_frames)
-        print("sway average", int(sway_avg))
-
-        #prints model part numbers
-        poseModel = op.PoseModel.BODY_25
-        print(op.getPoseBodyPartMapping(poseModel))
         cap.release()
         out.release()
         cv2.destroyAllWindows
