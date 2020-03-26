@@ -56,7 +56,7 @@ def set_gender(gender):
         print("Not a valid gender")
         sys.exit(-1)
 
-#Maybe need to average values instead
+#Maybe need to average values
 def calc_vel(position, step_size):
     """Calculate velocity
 
@@ -176,7 +176,8 @@ def main():
                 body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
                 pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
                 R_arm = [(datum.poseKeypoints[0][2][0] + datum.poseKeypoints[0][3][0])/2, (datum.poseKeypoints[0][2][1] +datum.poseKeypoints[0][3][1])/2]
-                R_forearm = [(datum.poseKey_sizes[0][4][0],datum.poseKeypoints[0][4][1]]
+                R_forearm = [(datum.poseKeypoints[0][3][0] + datum.poseKeypoints[0][4][0])/2, (datum.poseKeypoints[0][3][1] +datum.poseKeypoints[0][4][1])/2]
+                R_hand = [datum.poseKeypoints[0][4][0],datum.poseKeypoints[0][4][1]]
                 R_thigh = [(datum.poseKeypoints[0][9][0] + datum.poseKeypoints[0][10][0])/2, (datum.poseKeypoints[0][9][1] +datum.poseKeypoints[0][10][1])/2]
                 R_shank = [(datum.poseKeypoints[0][10][0] + datum.poseKeypoints[0][11][0])/2, (datum.poseKeypoints[0][10][1] +datum.poseKeypoints[0][11][1])/2]
                 R_foot = [(datum.poseKeypoints[0][22][0] + datum.poseKeypoints[0][24][0])/2, (datum.poseKeypoints[0][22][1] +datum.poseKeypoints[0][24][1])/2]
@@ -233,7 +234,7 @@ def main():
                     else:
                         COM_x += hands * body_perc["hand"] * 2
                 else:
-                    COM_x += (R_hand[0] + L_ha_sizend[0]) * body_perc["hand"]
+                    COM_x += (R_hand[0] + L_hand[0]) * body_perc["hand"]
                 
                 if R_thigh[0] == 0 or L_thigh[0] == 0:
                     thighs = max(R_thigh[0],L_thigh[0])
@@ -288,7 +289,7 @@ def main():
                         COM_y += arms * body_perc["arm"] * 2
                 else:
                     COM_y += (R_arm[1] + L_arm[1]) * body_perc["arm"]
-_size
+
                 if R_forearm[1] == 0 or L_forearm[1] == 0:
                     forearms = max(R_forearm[1],L_forearm[1])
                     if forearms == 0:
@@ -336,20 +337,18 @@ _size
 
                 COM = (int(COM_x), int(COM_y))
                 com_x_pos.append(int(COM_x))
+                
                 radius = 10
                 # Blue color in BGR 
                 color = (255, 0, 0) 
                 thickness = 2
                 #Add COM circle to image
-                cv2.circle(imageToProcess, COM, radius, color, thickness)
-                
-                # Find better way to readd data to datum
-                datum.cvInputData = imageToProcess
-                opWrapper.emplaceAndPop([datum])
-
-                cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", datum.cvOutputData)
+                output_frame = datum.cvOutputData
+                cv2.circle(output_frame, COM, radius, color, thickness)
+           
+                cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
                 # Save frame to output video
-                out.write(datum.cvOutputData)
+                out.write(output_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
