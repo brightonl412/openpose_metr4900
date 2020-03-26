@@ -16,7 +16,18 @@ except ImportError as e:
     raise e
 #import openpose
 
+
+
+
 def set_gender(gender):
+    """Sets body pecentages based on gender
+
+    The percentages of body parts are set depending on gender. 
+
+    Args:
+        gender: str- must be "male" or "female"
+    Returns: dict- body mass percentages
+    """
     if gender == "male":
         return {
             "head": 0.0694,
@@ -44,7 +55,43 @@ def set_gender(gender):
     else:
         print("Not a valid gender")
         sys.exit(-1)
-    
+
+#Maybe need to average values instead
+def calc_vel(position, step_size):
+    """Calculate velocity
+
+    Velocity calculation dependent upon position values using formula: 
+    change in displacement/change in time
+
+    Args:
+        postion: list- positions per frame
+        step_size: int- change in time/frames
+
+    Returns: list- velocities of each frame starting from the step_size
+    """
+    com_vel = []
+    for i in range(0, len(position) - step_size):
+        vel = (position[i + step_size] - position[i])/step_size
+        com_vel.append(vel)
+    return com_vel
+
+def calc_acc(velocity, step_size):
+    """Calculate acceleration
+
+    Acceleration calculation dependent upon velocity values using formula: 
+    change in velocity/change in time
+
+    Args:
+        postion: list- positions per frame
+        step_size: int- change in time/frames
+
+    Returns: list- acceleration of each frame starting from the step_size + step_size of calc_vel
+    """
+    com_acc = []
+    for i in range(0, len(velocity) - step_size):
+        acc = (velocity[i + step_size] - velocity[i])/step_size
+        com_acc.append(acc)
+    return com_acc
 
 def main():
     try:
@@ -107,6 +154,9 @@ def main():
         frame_num = 0
         unsuccessful_frames = 0
 
+        com_x_pos = []
+        com_y_pos = []
+
         while(cap.isOpened()):
             ret, frame = cap.read()
             #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -126,8 +176,7 @@ def main():
                 body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
                 pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
                 R_arm = [(datum.poseKeypoints[0][2][0] + datum.poseKeypoints[0][3][0])/2, (datum.poseKeypoints[0][2][1] +datum.poseKeypoints[0][3][1])/2]
-                R_forearm = [(datum.poseKeypoints[0][3][0] + datum.poseKeypoints[0][4][0])/2, (datum.poseKeypoints[0][3][1] +datum.poseKeypoints[0][4][1])/2]
-                R_hand = [datum.poseKeypoints[0][4][0],datum.poseKeypoints[0][4][1]]
+                R_forearm = [(datum.poseKey_sizes[0][4][0],datum.poseKeypoints[0][4][1]]
                 R_thigh = [(datum.poseKeypoints[0][9][0] + datum.poseKeypoints[0][10][0])/2, (datum.poseKeypoints[0][9][1] +datum.poseKeypoints[0][10][1])/2]
                 R_shank = [(datum.poseKeypoints[0][10][0] + datum.poseKeypoints[0][11][0])/2, (datum.poseKeypoints[0][10][1] +datum.poseKeypoints[0][11][1])/2]
                 R_foot = [(datum.poseKeypoints[0][22][0] + datum.poseKeypoints[0][24][0])/2, (datum.poseKeypoints[0][22][1] +datum.poseKeypoints[0][24][1])/2]
@@ -184,7 +233,7 @@ def main():
                     else:
                         COM_x += hands * body_perc["hand"] * 2
                 else:
-                    COM_x += (R_hand[0] + L_hand[0]) * body_perc["hand"]
+                    COM_x += (R_hand[0] + L_ha_sizend[0]) * body_perc["hand"]
                 
                 if R_thigh[0] == 0 or L_thigh[0] == 0:
                     thighs = max(R_thigh[0],L_thigh[0])
@@ -239,7 +288,7 @@ def main():
                         COM_y += arms * body_perc["arm"] * 2
                 else:
                     COM_y += (R_arm[1] + L_arm[1]) * body_perc["arm"]
-
+_size
                 if R_forearm[1] == 0 or L_forearm[1] == 0:
                     forearms = max(R_forearm[1],L_forearm[1])
                     if forearms == 0:
@@ -286,6 +335,7 @@ def main():
                     COM_y += (R_foot[1] + L_foot[1]) * body_perc["foot"]
 
                 COM = (int(COM_x), int(COM_y))
+                com_x_pos.append(int(COM_x))
                 radius = 10
                 # Blue color in BGR 
                 color = (255, 0, 0) 
@@ -308,6 +358,11 @@ def main():
         cap.release()
         out.release()
         cv2.destroyAllWindows
+
+        vel = calc_vel(com_x_pos, 5)
+        acc = calc_acc(vel, 5)
+        print(vel)
+        print(acc)
 
 
     except Exception as e:
