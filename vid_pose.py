@@ -12,7 +12,9 @@ try:
     sys.path.append('/usr/local/python')
     from openpose import pyopenpose as op
 except ImportError as e:
-    print('Error: OpenPose library could not be found. Did you enable `BUILD_PYTHON` in CMake and have this Python script in the right folder?')
+    print('Error: OpenPose library could not be found. Did you enable \
+        `BUILD_PYTHON` in CMake and have this Python script in the right \
+        folder?')
     raise e
 #import openpose
 
@@ -57,14 +59,56 @@ def set_gender(gender):
         sys.exit(-1)
 
 #Maybe need to average values
+#May need to chnage to be pos(i)- pos(i-step_size), change range as well
 def calc_vel(position, step_size):
-    """Calculate velocity
+    """Calculate velocity for all possible frames
 
     Velocity calculation dependent upon position values using formula: 
     change in displacement/change in time
 
     Args:
         postion: list- positions per frame
+        step_size: int- change in time/frames
+
+    Returns: list- velocities of each frame starting from the step_size
+    """
+    com_vel = []
+    for i in range(step_size + 1, len(position)):
+        com_vel.append(calc_vel_frame(position, step_size, i))
+    return com_vel
+
+def calc_vel_frame(position, step_size, frame):
+    """Calculate velocity for single fram
+
+    Velocity calculation dependent upon position values using formula: 
+    change in displacement/change in time
+
+    Args:
+        postion: list- positions per frame
+        step_size: int- change in time/frames
+
+
+    Returns: list- velocities of each frame starting from the step_size
+    """
+    if (len(position) < step_size or len(position) < frame):
+        print("error")
+    if (frame < step_size):
+        print("error")
+    
+    vel = (position[frame] - position[frame - step_size]) / step_size
+    return vel
+    
+
+#Need to complete
+def calc_avg_vel(position, avg_quantity, step_size):
+    """Calculate velocity using the average of a subset of frames
+
+    Velocity calculation dependent upon position values using formula: 
+    average change in displacement/change in time
+
+    Args:
+        postion: list- positions per frame
+        avg_quantity- the number of frames to average
         step_size: int- change in time/frames
 
     Returns: list- velocities of each frame starting from the step_size
@@ -85,7 +129,8 @@ def calc_acc(velocity, step_size):
         postion: list- positions per frame
         step_size: int- change in time/frames
 
-    Returns: list- acceleration of each frame starting from the step_size + step_size of calc_vel
+    Returns: list- acceleration of each frame starting from the step_size + \
+        step_size of calc_vel
     """
     com_acc = []
     for i in range(0, len(velocity) - step_size):
@@ -143,10 +188,12 @@ def main():
         video_type = vid_location.split(".")[-1]
         if video_type == "mp4":
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter('media/output.mp4',fourcc,fps,(int(width),int(height)))
+            out = cv2.VideoWriter('media/output.mp4', fourcc, fps, (int(width),
+                int(height)))
         elif video_type == "avi":
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter('media/output.avi',fourcc,fps,(int(width),int(height)))
+            out = cv2.VideoWriter('media/output.avi', fourcc, fps, (int(width),
+                int(height)))
         else:
             print("Video format not supported")
             sys.exit(-1)
@@ -167,7 +214,8 @@ def main():
                 imageToProcess = frame
 
                 frame_num += 1
-                cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, (255,255,255), 1)
+                cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
+                    (255,255,255), 1)
                 datum.cvInputData = imageToProcess
                 opWrapper.emplaceAndPop([datum])
                 
@@ -363,6 +411,8 @@ def main():
         print(vel)
         print(acc)
 
+        test = calc_vel_frame(com_x_pos, 5, 6)
+        print(test)
 
     except Exception as e:
         print(e)
