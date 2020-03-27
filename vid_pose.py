@@ -95,7 +95,7 @@ def calc_vel_frame(position, step_size, frame):
     if (frame < step_size):
         print("error")
     
-    vel = (position[frame] - position[frame - step_size]) / step_size
+    vel = (position[frame - 1] - position[frame - 1 - step_size]) / step_size
     return vel
     
 
@@ -393,6 +393,11 @@ def main():
                 #Add COM circle to image
                 output_frame = datum.cvOutputData
                 cv2.circle(output_frame, COM, radius, color, thickness)
+                if frame_num>5:
+                    vel = calc_vel_frame(com_x_pos, 5, frame_num)
+                    point_2 = (int(COM_x+ 10*vel), int(COM_y))
+                    cv2.arrowedLine(output_frame, COM, point_2, (0,0,255), 3)
+
            
                 cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
                 # Save frame to output video
@@ -406,13 +411,13 @@ def main():
         out.release()
         cv2.destroyAllWindows
 
-        vel = calc_vel(com_x_pos, 5)
-        acc = calc_acc(vel, 5)
-        print(vel)
-        print(acc)
+        #vel = calc_vel(com_x_pos, 5)
+        #acc = calc_acc(vel, 5)
+        #print(vel)
+        #print(acc)
 
-        test = calc_vel_frame(com_x_pos, 5, 6)
-        print(test)
+        #test = calc_vel_frame(com_x_pos, 5, 6)
+        #print(test)
 
     except Exception as e:
         print(e)
