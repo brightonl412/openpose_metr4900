@@ -4,6 +4,7 @@ import os
 from sys import platform
 import argparse
 import numpy as np
+import math
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -58,8 +59,6 @@ def set_gender(gender):
         print("Not a valid gender")
         sys.exit(-1)
 
-#Maybe need to average values
-#May need to chnage to be pos(i)- pos(i-step_size), change range as well
 def calc_vel(position, step_size):
     """Calculate velocity for all possible frames
 
@@ -70,15 +69,20 @@ def calc_vel(position, step_size):
         postion: list- positions per frame
         step_size: int- change in time/frames
 
-    Returns: list- velocities of each frame starting from the step_size
+    Returns:
+        int- starting frame number
+        int- ending frame number
+        list- velocities of each frame starting from the step_size
     """
+    start_frame = step_size + 1
+    end_frame = len(position)
     com_vel = []
     for i in range(step_size + 1, len(position)):
         com_vel.append(calc_vel_frame(position, step_size, i))
-    return com_vel
+    return start_frame, end_frame, com_vel
 
 def calc_vel_frame(position, step_size, frame):
-    """Calculate velocity for single fram
+    """Calculate velocity for single frame
 
     Velocity calculation dependent upon position values using formula: 
     change in displacement/change in time
@@ -88,19 +92,19 @@ def calc_vel_frame(position, step_size, frame):
         step_size: int- change in time/frames
 
 
-    Returns: list- velocities of each frame starting from the step_size
+    Returns: velocity of chosen frame 
     """
-    if (len(position) < step_size or len(position) < frame):
-        print("error")
     if (frame < step_size):
-        print("error")
-    
-    vel = (position[frame - 1] - position[frame - 1 - step_size]) / step_size
-    return vel
+        raise IndexError("Frame must be greater than step size")
+    else:
+        try:
+            vel = (position[frame - 1] - position[frame - 1 - step_size]) / step_size
+            return vel
+        except IndexError:
+            print("Frame or step_size out of bounds")
     
 
-#Need to complete
-def calc_avg_vel(position, avg_quantity, step_size):
+def calc_avg_vel(position, step_size, avg_quantity):
     """Calculate velocity using the average of a subset of frames
 
     Velocity calculation dependent upon position values using formula: 
@@ -111,13 +115,54 @@ def calc_avg_vel(position, avg_quantity, step_size):
         avg_quantity- the number of frames to average
         step_size: int- change in time/frames
 
-    Returns: list- velocities of each frame starting from the step_size
+    Returns: 
+        int- starting frame number
+        int- ending frame number
+        list- velocities of each frame starting from the step_size
     """
+    avg_disp = int(math.floor(avg_quantity/2))
+    start_frame = step_size + avg_disp + 1
+    end_frame = len(position) - avg_disp
+    print("Calculating velocities from frames", start_frame, "to", end_frame)
     com_vel = []
-    for i in range(0, len(position) - step_size):
-        vel = (position[i + step_size] - position[i])/step_size
-        com_vel.append(vel)
-    return com_vel
+    for i in range(start_frame + 1, len(position) - avg_disp):
+        com_vel.append(calc_avg_vel_frame(position, step_size, i, avg_quantity))
+    return start_frame, end_frame, com_vel
+
+def calc_avg_vel_frame(position, step_size, frame, avg_quantity):
+    """Calculate velocity for a single frame using the averaged position
+
+    Velocity calculation dependent upon position values using formula: 
+    change in displacement/change in time
+
+    Args:
+        postion: list- positions per frame
+        step_size: int- change in time/frames
+
+
+    Returns: velocity of chosen frame 
+    """
+    avg_disp = int(math.floor(avg_quantity/2))
+
+    if (frame < (step_size + avg_disp)):
+        raise IndexError("Can not calculate for this frame")
+    else:
+        try:
+            position_avg = 0
+            for i in range(frame - 1 - avg_disp, frame + avg_disp):
+                position_avg += position[i]
+            position_1 = position_avg / (avg_disp * 2 + 1)
+            
+            position_avg = 0
+            for i in range(frame - 1 - avg_disp- step_size, frame + avg_disp - step_size):
+                position_avg += position[i]
+            position_2 = position_avg / (avg_disp * 2 + 1)
+
+            vel = (position_1 - position_2) / step_size
+            return round(vel, 2)
+        except IndexError:
+            print("Frame or step_size out of bounds")
+
 
 def calc_acc(velocity, step_size):
     """Calculate acceleration
@@ -203,7 +248,7 @@ def main():
 
         com_x_pos = []
         com_y_pos = []
-
+        print("Generating Pose")
         while(cap.isOpened()):
             ret, frame = cap.read()
             #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -383,24 +428,56 @@ def main():
                 else:
                     COM_y += (R_foot[1] + L_foot[1]) * body_perc["foot"]
 
-                COM = (int(COM_x), int(COM_y))
                 com_x_pos.append(int(COM_x))
+                com_y_pos.append(int(COM_y))        
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            else:
+                break
+        cap.release()
+        #out.release()
+        cv2.destroyAllWindows
+
+        print("Generating Output")
+        cap = cv2.VideoCapture(vid_location)
+        frame_num = 0
+        max_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        #Calculate frame velocities
+        #Averaged 
+        start, stop, velocity = calc_avg_vel(com_x_pos, 5, 5)
+        #Normal
+        #start, stop, velocity = calc_vel(com_x_pos, 5)
+        while(cap.isOpened()):
+            ret, frame = cap.read()
+            if ret == True:
+                # Process Image
+                datum = op.Datum()
+                imageToProcess = frame
+                frame_num += 1
+                cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
+                    (255,255,255), 1)
+                datum.cvInputData = imageToProcess
+                opWrapper.emplaceAndPop([datum])
                 
+                #Add COM circle to image
                 radius = 10
                 # Blue color in BGR 
                 color = (255, 0, 0) 
                 thickness = 2
-                #Add COM circle to image
+                COM_x = com_x_pos[frame_num - 1]
+                COM_y = com_y_pos[frame_num - 1]
+                COM = (COM_x, COM_y)
                 output_frame = datum.cvOutputData
                 cv2.circle(output_frame, COM, radius, color, thickness)
-                if frame_num>5:
-                    vel = calc_vel_frame(com_x_pos, 5, frame_num)
-                    point_2 = (int(COM_x+ 10*vel), int(COM_y))
-                    cv2.arrowedLine(output_frame, COM, point_2, (0,0,255), 3)
 
-           
+                #Plot frame velocities
+                if (frame_num >= start and 
+                    frame_num < stop):
+                    vel = velocity[frame_num - start]
+                    point_2 = (int(COM_x + 10 * vel), int(COM_y))
+                    cv2.arrowedLine(output_frame, COM, point_2, (0,0,255), 3)
                 cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
-                # Save frame to output video
                 out.write(output_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -410,15 +487,7 @@ def main():
         cap.release()
         out.release()
         cv2.destroyAllWindows
-
-        #vel = calc_vel(com_x_pos, 5)
-        #acc = calc_acc(vel, 5)
-        #print(vel)
-        #print(acc)
-
-        #test = calc_vel_frame(com_x_pos, 5, 6)
-        #print(test)
-
+        
     except Exception as e:
         print(e)
         sys.exit(-1)
