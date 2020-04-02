@@ -72,12 +72,12 @@ def calc_vel(position, step_size):
     Returns:
         int- starting frame number
         int- ending frame number
-        list- velocities of each frame starting from the step_size
+        list- velocities of each frame starting from the start frame
     """
     start_frame = step_size + 1
     end_frame = len(position)
     com_vel = []
-    for i in range(step_size + 1, len(position)):
+    for i in range(start_frame, end_frame + 1):
         com_vel.append(calc_vel_frame(position, step_size, i))
     return start_frame, end_frame, com_vel
 
@@ -90,7 +90,6 @@ def calc_vel_frame(position, step_size, frame):
     Args:
         postion: list- positions per frame
         step_size: int- change in time/frames
-
 
     Returns: velocity of chosen frame 
     """
@@ -118,14 +117,14 @@ def calc_avg_vel(position, step_size, avg_quantity):
     Returns: 
         int- starting frame number
         int- ending frame number
-        list- velocities of each frame starting from the step_size
+        list- velocities of each frame starting from the start frame
     """
-    avg_disp = int(math.floor(avg_quantity/2))
+    avg_disp = int(math.floor(avg_quantity / 2))
     start_frame = step_size + avg_disp + 1
     end_frame = len(position) - avg_disp
     print("Calculating velocities from frames", start_frame, "to", end_frame)
     com_vel = []
-    for i in range(start_frame + 1, len(position) - avg_disp):
+    for i in range(start_frame, end_frame + 1):
         com_vel.append(calc_avg_vel_frame(position, step_size, i, avg_quantity))
     return start_frame, end_frame, com_vel
 
@@ -139,10 +138,9 @@ def calc_avg_vel_frame(position, step_size, frame, avg_quantity):
         postion: list- positions per frame
         step_size: int- change in time/frames
 
-
     Returns: velocity of chosen frame 
     """
-    avg_disp = int(math.floor(avg_quantity/2))
+    avg_disp = int(math.floor(avg_quantity / 2))
 
     if (frame < (step_size + avg_disp)):
         raise IndexError("Can not calculate for this frame")
@@ -154,7 +152,7 @@ def calc_avg_vel_frame(position, step_size, frame, avg_quantity):
             position_1 = position_avg / (avg_disp * 2 + 1)
             
             position_avg = 0
-            for i in range(frame - 1 - avg_disp- step_size, frame + avg_disp - step_size):
+            for i in range(frame - 1 - avg_disp - step_size, frame + avg_disp - step_size):
                 position_avg += position[i]
             position_2 = position_avg / (avg_disp * 2 + 1)
 
@@ -163,8 +161,7 @@ def calc_avg_vel_frame(position, step_size, frame, avg_quantity):
         except IndexError:
             print("Frame or step_size out of bounds")
 
-
-def calc_acc(velocity, step_size):
+def calc_acc(velocity, step_size, vel_start_frame):
     """Calculate acceleration
 
     Acceleration calculation dependent upon velocity values using formula: 
@@ -173,15 +170,43 @@ def calc_acc(velocity, step_size):
     Args:
         postion: list- positions per frame
         step_size: int- change in time/frames
+        vel_start_frame: int- the frame number of the first index in velocity 
 
-    Returns: list- acceleration of each frame starting from the step_size + \
-        step_size of calc_vel
+    Returns: 
+        int- starting frame number
+        int- ending frame number
+        list- velocities of each frame starting from the start frame
     """
+    start_frame = step_size + vel_start_frame
+    end_frame = len(velocity) + vel_start_frame - 1
     com_acc = []
-    for i in range(0, len(velocity) - step_size):
-        acc = (velocity[i + step_size] - velocity[i])/step_size
-        com_acc.append(acc)
-    return com_acc
+    print("Calculating acceleration from frames", start_frame, "to", end_frame)
+    for i in range(start_frame, end_frame + 1):
+        com_acc.append(calc_acc_frame(velocity, step_size, i, vel_start_frame))
+    return start_frame, end_frame, com_acc
+
+def calc_acc_frame(velocity, step_size, frame, vel_start_frame):
+    """Calculate acceleration for single frame
+
+    Acceleration calculation dependent upon position values using formula: 
+    change in velocity/change in time
+
+    Args:
+        velocity: list- velocity of CoM per frame
+        step_size: int- change in time- number of frames
+
+    Returns: acceleration of chosen frame 
+    """
+    #The offset required due to the velocities starting a vel_start_frame
+    acc_offset = frame - vel_start_frame + 1
+    if ((acc_offset) < step_size):
+        raise IndexError("Acceleration cannot be calculated for this frame")
+    else:
+        try:
+            acc = (velocity[acc_offset - 1] - velocity[acc_offset - 1 - step_size]) / step_size
+            return round(acc,2)
+        except IndexError:
+            print("Frame or step_size out of bounds")
 
 def main():
     try:
@@ -309,7 +334,6 @@ def main():
                         COM_x += arms * body_perc["arm"] * 2
                 else:
                     COM_x += (R_arm[0] + L_arm[0]) * body_perc["arm"]
-
                 
                 if R_forearm[0] == 0 or (L_forearm[0]) == 0:
                     forearms = max(R_forearm[0],L_forearm[0])
@@ -446,6 +470,7 @@ def main():
         #Calculate frame velocities
         #Averaged 
         start, stop, velocity = calc_avg_vel(com_x_pos, 5, 5)
+        _ ,_ , acceleration = calc_acc(velocity, 5, start)
         #Normal
         #start, stop, velocity = calc_vel(com_x_pos, 5)
         while(cap.isOpened()):
@@ -473,7 +498,7 @@ def main():
 
                 #Plot frame velocities
                 if (frame_num >= start and 
-                    frame_num < stop):
+                    frame_num <= stop):
                     vel = velocity[frame_num - start]
                     point_2 = (int(COM_x + 10 * vel), int(COM_y))
                     cv2.arrowedLine(output_frame, COM, point_2, (0,0,255), 3)
