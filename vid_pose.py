@@ -169,6 +169,25 @@ def calc_acc_frame(velocity, step_size, frame, vel_start_frame):
         except IndexError:
             print("Frame or step_size out of bounds")
 
+def calc_inertia(CoM, ankle):
+    """Calculate mass moment of inertia
+
+    Mass moment of inertia calculation for the patient. Given by formula: Mr^2,
+    where:
+        M- Mass
+        r- radius of mass from axis of rotation (ankle)
+    The mass moment of inertia is given in kg*pixels^2
+
+    Args:
+        CoM - Centre of mass coordinates in pixels
+        ankle - Coorindates of ankle in pixels
+
+    Returns: Mass moment of inertia 
+    """
+    dist = math.sqrt(((CoM[0] - ankle[0])**2) + ((CoM[1] - ankle[1])**2))
+    print(type(dist))
+    return dist
+
 def main():
     try:
         parser = argparse.ArgumentParser()
@@ -282,8 +301,6 @@ def main():
                     print("Error- Nose")
                 pixel_height = foot_y - nose_y
                 patient.set_pixel_cm(pixel_height)
-                print(patient.pixel_cm)
-                
 
                 #Calulate x CoM
                 COM_x = 0 
@@ -433,6 +450,24 @@ def main():
 
                 com_x_pos.append(int(COM_x))
                 com_y_pos.append(int(COM_y))        
+                
+                #Mass Moment of Inertia Calc
+                R_ankle = [datum.poseKeypoints[0][11][0],datum.poseKeypoints[0][11][1]]
+                L_ankle = [datum.poseKeypoints[0][14][0],datum.poseKeypoints[0][14][1]]
+                ankle = None
+
+                
+                if R_ankle[1] == 0 and L_ankle[1] == 0:
+                    print("Error- ankle")
+                else:
+                    if R_ankle[1] >= L_ankle[1]:
+                        ankle = R_ankle
+                    else:
+                        ankle = L_ankle
+                CoM = [int(COM_x), int(COM_y)]
+                MMI = calc_inertia(CoM, ankle)
+                print(MMI)
+                    
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
