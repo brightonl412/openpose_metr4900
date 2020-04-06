@@ -5,6 +5,7 @@ from sys import platform
 import argparse
 import numpy as np
 import math
+from patient import Patient
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -18,46 +19,6 @@ except ImportError as e:
         folder?')
     raise e
 #import openpose
-
-
-
-
-def set_gender(gender):
-    """Sets body pecentages based on gender
-
-    The percentages of body parts are set depending on gender. 
-
-    Args:
-        gender: str- must be "male" or "female"
-    Returns: dict- body mass percentages
-    """
-    if gender == "male":
-        return {
-            "head": 0.0694,
-            "body": 0.3229,
-            "pelvis": 0.1117,
-            "arm": 0.0271,
-            "forearm": 0.0162,
-            "hand": 0.0061,
-            "thigh": 0.1416,
-            "shank": 0.0433,
-            "foot": 0.0137
-        }
-    elif gender == "female":
-        return {
-            "head": 0.0668,
-            "body": 0.301,
-            "pelvis": 0.1247,
-            "arm": 0.0255,
-            "forearm": 0.0138,
-            "hand": 0.0056,
-            "thigh": 0.1478,
-            "shank": 0.0481,
-            "foot": 0.0129
-        }
-    else:
-        print("Not a valid gender")
-        sys.exit(-1)
 
 def calc_vel(position, step_size):
     """Calculate velocity for all possible frames
@@ -239,9 +200,10 @@ def main():
         opWrapper = op.WrapperPython()
         opWrapper.configure(params)
         opWrapper.start()
-
+        
+        patient = Patient("male", 177, 70)
         #Set gender of patient
-        body_perc = set_gender("male")
+        body_perc = patient.body_perc()
 
         #Video location as a string
         vid_location = "media/landscape_1.mp4"
@@ -290,9 +252,10 @@ def main():
                 opWrapper.emplaceAndPop([datum])
                 
                 #Change to tuple
-                R_ear = [datum.poseKeypoints[0][17][0],datum.poseKeypoints[0][17][1]]
                 body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
                 pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
+
+                R_ear = [datum.poseKeypoints[0][17][0],datum.poseKeypoints[0][17][1]]
                 R_arm = [(datum.poseKeypoints[0][2][0] + datum.poseKeypoints[0][3][0])/2, (datum.poseKeypoints[0][2][1] +datum.poseKeypoints[0][3][1])/2]
                 R_forearm = [(datum.poseKeypoints[0][3][0] + datum.poseKeypoints[0][4][0])/2, (datum.poseKeypoints[0][3][1] +datum.poseKeypoints[0][4][1])/2]
                 R_hand = [datum.poseKeypoints[0][4][0],datum.poseKeypoints[0][4][1]]
@@ -308,6 +271,21 @@ def main():
                 L_shank = [(datum.poseKeypoints[0][13][0] + datum.poseKeypoints[0][14][0])/2, (datum.poseKeypoints[0][13][1] +datum.poseKeypoints[0][14][1])/2]
                 L_foot = [(datum.poseKeypoints[0][21][0] + datum.poseKeypoints[0][19][0])/2, (datum.poseKeypoints[0][21][1] +datum.poseKeypoints[0][19][1])/2]
 
+                #Used for pixel-m conversion
+                nose = [datum.poseKeypoints[0][0][0], datum.poseKeypoints[0][0][1]]
+                
+                foot_y = max(R_foot[1], L_foot[1])
+                if foot_y == 0:
+                    print("Error- Foot")
+                nose_y = nose[1]
+                if nose_y == 0:
+                    print("Error- Nose")
+                pixel_height = foot_y - nose_y
+                patient.set_pixel_cm(pixel_height)
+                print(patient.pixel_cm)
+                
+
+                #Calulate x CoM
                 COM_x = 0 
                 if R_ear[0] == 0 and L_ear[0] == 0:
                     print("Error- head")
@@ -327,7 +305,7 @@ def main():
                     COM_x += pelvis[0]* body_perc["pelvis"]
 
                 if R_arm[0] == 0 or L_arm[0] == 0:
-                    arms = max(R_arm[0],L_arm[0])
+                    arms = max(R_arm[0], L_arm[0])
                     if arms == 0:
                         print("Error- arm")
                     else:
@@ -336,7 +314,7 @@ def main():
                     COM_x += (R_arm[0] + L_arm[0]) * body_perc["arm"]
                 
                 if R_forearm[0] == 0 or (L_forearm[0]) == 0:
-                    forearms = max(R_forearm[0],L_forearm[0])
+                    forearms = max(R_forearm[0], L_forearm[0])
                     if forearms == 0:
                         print("Error- forearm")
                     else:
@@ -345,7 +323,7 @@ def main():
                     COM_x += (R_forearm[0] + L_forearm[0]) * body_perc["forearm"]
 
                 if R_hand[0] == 0 or L_hand[0] == 0:
-                    hands = max(R_hand[0],L_hand[0])
+                    hands = max(R_hand[0], L_hand[0])
                     if hands == 0:
                         print("Error- arm")
                     else:
@@ -354,7 +332,7 @@ def main():
                     COM_x += (R_hand[0] + L_hand[0]) * body_perc["hand"]
                 
                 if R_thigh[0] == 0 or L_thigh[0] == 0:
-                    thighs = max(R_thigh[0],L_thigh[0])
+                    thighs = max(R_thigh[0], L_thigh[0])
                     if thighs == 0:
                         print("Error- thigh")
                     else:
@@ -363,7 +341,7 @@ def main():
                     COM_x += (R_thigh[0] + L_thigh[0]) * body_perc["thigh"]
 
                 if R_shank[0] == 0 or L_shank[0] == 0:
-                    shanks = max(R_shank[0],L_shank[0])
+                    shanks = max(R_shank[0], L_shank[0])
                     if shanks == 0:
                         print("Error- shank")
                     else:
@@ -372,7 +350,7 @@ def main():
                     COM_x += (R_shank[0] + L_shank[0]) * body_perc["shank"]
 
                 if R_foot[0] == 0 or L_foot[0] == 0:
-                    foots = max(R_foot[0],L_foot[0])
+                    foots = max(R_foot[0], L_foot[0])
                     if foots == 0:
                         print("Error- foot")
                     else:
@@ -380,6 +358,7 @@ def main():
                 else:
                     COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
 
+                #Calulate y CoM
                 COM_y = 0 
                 if R_ear[1] == 0 and L_ear[1] == 0:
                     print("Error- head")
@@ -399,7 +378,7 @@ def main():
                     COM_y += pelvis[1]* body_perc["pelvis"]
 
                 if R_arm[1] == 0 or L_arm[1] == 0:
-                    arms = max(R_arm[1],L_arm[1])
+                    arms = max(R_arm[1], L_arm[1])
                     if arms == 0:
                         print("Error- arm")
                     else:
@@ -408,7 +387,7 @@ def main():
                     COM_y += (R_arm[1] + L_arm[1]) * body_perc["arm"]
 
                 if R_forearm[1] == 0 or L_forearm[1] == 0:
-                    forearms = max(R_forearm[1],L_forearm[1])
+                    forearms = max(R_forearm[1], L_forearm[1])
                     if forearms == 0:
                         print("Error- forearm")
                     else:
@@ -426,7 +405,7 @@ def main():
                     COM_y += (R_hand[1] + L_hand[1]) * body_perc["hand"]
                 
                 if R_thigh[1] == 0 or L_thigh[1] == 0:
-                    thighs = max(R_thigh[1],L_thigh[1])
+                    thighs = max(R_thigh[1], L_thigh[1])
                     if thighs == 0:
                         print("Error- thigh")
                     else:
@@ -435,7 +414,7 @@ def main():
                     COM_y += (R_thigh[1] + L_thigh[1]) * body_perc["thigh"]
 
                 if R_shank[1] == 0 or L_shank[1] == 0:
-                    shanks = max(R_shank[1],L_shank[1])
+                    shanks = max(R_shank[1], L_shank[1])
                     if shanks == 0:
                         print("Error- shank")
                     else:
@@ -444,7 +423,7 @@ def main():
                     COM_y += (R_shank[1] + L_shank[1]) * body_perc["shank"]
 
                 if R_foot[1] == 0 or L_foot[1] == 0:
-                    foots = max(R_foot[1],L_foot[1])
+                    foots = max(R_foot[1], L_foot[1])
                     if foots == 0:
                         print("Error- foot")
                     else:
