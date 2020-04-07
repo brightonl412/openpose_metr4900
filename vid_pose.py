@@ -172,7 +172,7 @@ def calc_acc_frame(velocity, step_size, frame, vel_start_frame):
         except IndexError:
             print("Frame or step_size out of bounds")
 
-def calc_inertia(CoM, ankle):
+def calc_inertia(CoM, ankle, mass):
     """Calculate mass moment of inertia
 
     Mass moment of inertia calculation for the patient. Given by formula: Mr^2,
@@ -188,7 +188,33 @@ def calc_inertia(CoM, ankle):
     Returns: Mass moment of inertia 
     """
     dist = math.sqrt(((CoM[0] - ankle[0])**2) + ((CoM[1] - ankle[1])**2))
-    return dist
+    inertia = mass * (dist**2)
+    return inertia
+
+def calc_force(patient, fps):
+    gravity = 9.81 # m/s^2
+    mass = patient.mass
+    m_to_pixel = patient.pixel_cm * 100
+    acceleration = gravity * m_to_pixel / (fps**2) # pixels/frame^2
+    force = mass * acceleration #kg pixels/frame^2
+    return force
+
+def CoG_x(CoM_x, ankles):
+    CoG = []
+    for i in range(0, len(CoM_x)):
+        CoG_frame = CoM_x[i] - ankles[i][0]
+        CoG.append(CoG_frame)
+    return CoG
+
+def CoP_x(CoG_x, ang_acc, inertia, force):
+    CoP = []
+    for i in range(0, len(ang_acc)):
+        if ang_acc[i] is None:
+            pass
+        else:
+            CoP_frame = CoG_x[i] + (inertia[i] * ang_acc[i] / force)
+            CoP.append(CoP_frame)
+    return CoP
 
 def length(v):
     return math.sqrt(v[0]**2 + v[1]**2)
@@ -278,6 +304,7 @@ def main():
         com_y_pos = []
         com_ang = []
         inertias = []
+        ankle_pos = []
         print("Generating Pose")
         while(cap.isOpened()):
             ret, frame = cap.read()
@@ -488,7 +515,7 @@ def main():
                     else:
                         ankle = L_ankle
                 CoM = [int(COM_x), int(COM_y)]
-                MMI = calc_inertia(CoM, ankle)
+                MMI = calc_inertia(CoM, ankle, patient.mass)
                 inertias.append(MMI)                    
 
                 #Angle calc
@@ -497,8 +524,7 @@ def main():
                 CoM_to_ankle = [COM_x - ankle[0], ankle[1]- COM_y]
                 ang = angle(CoM_to_ankle, horizontal_axis)
                 com_ang.append(ang) 
-                #print(horizontal_axis)
-                #print(CoM_to_ankle)
+                ankle_pos.append(ankle)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
@@ -519,13 +545,15 @@ def main():
         updated_vel = add_empty_frames(velocity, start)
         updated_acc = add_empty_frames(acceleration, start2)
 
-        ang_vel_start, _, ang_vel = calc_avg_vel(com_ang, 5, 5)
-        ang_acc_start, _, ang_acc = calc_acc(ang_vel, 5, ang_vel_start)
-        #print(com_ang)
-        #print(ang_vel)
-        #print(ang_acc)
+        
 
         #CoG, Force, ang_acc, 
+        ang_vel_start, _, ang_vel = calc_avg_vel(com_ang, 5, 5)
+        ang_acc_start, ang_acc_stop, ang_acc = calc_acc(ang_vel, 5, ang_vel_start)
+        updated_ang_acc = add_empty_frames(ang_acc, ang_acc_start)
+        force = calc_force(patient, fps)
+        CoG = CoG_x(com_x_pos, ankle_pos)
+        CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
 
         #Normal
         #start, stop, velocity = calc_vel(com_x_pos, 5)
@@ -558,6 +586,17 @@ def main():
                     vel = velocity[frame_num - start]
                     point_2 = (int(COM_x + 10 * vel), int(COM_y))
                     cv2.arrowedLine(output_frame, COM, point_2, (0,0,255), 3)
+
+                #Plot CoP
+                if (frame_num >= ang_acc_start and
+                    frame_num <= ang_acc_stop):
+                    CoP_frame = CoP[frame_num - ang_acc_start]
+                    ankle_x = ankle_pos[frame_num - 1][0]
+                    ankle_y = ankle_pos[frame_num - 1][1]
+                    point_2 = (int(ankle_x + CoP_frame), int(ankle_y - 20)) 
+                    point_1 = (int(ankle_x + CoP_frame), ankle_y)
+                    cv2.arrowedLine(output_frame, point_1, point_2, (0,0,255), 3)
+
                 cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
                 out.write(output_frame)
 
