@@ -5,6 +5,7 @@ from sys import platform
 import argparse
 import numpy as np
 import math
+import copy
 from patient import Patient
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -118,7 +119,8 @@ def calc_avg_vel_frame(position, step_size, frame, avg_quantity):
             position_2 = position_avg / (avg_disp * 2 + 1)
 
             vel = (position_1 - position_2) / step_size
-            return round(vel, 2)
+            return vel
+            #return round(vel, 2)
         except IndexError:
             print("Frame or step_size out of bounds")
 
@@ -165,7 +167,8 @@ def calc_acc_frame(velocity, step_size, frame, vel_start_frame):
     else:
         try:
             acc = (velocity[acc_offset - 1] - velocity[acc_offset - 1 - step_size]) / step_size
-            return round(acc,2)
+            return acc
+            #return round(acc,2)
         except IndexError:
             print("Frame or step_size out of bounds")
 
@@ -185,8 +188,27 @@ def calc_inertia(CoM, ankle):
     Returns: Mass moment of inertia 
     """
     dist = math.sqrt(((CoM[0] - ankle[0])**2) + ((CoM[1] - ankle[1])**2))
-    print(type(dist))
     return dist
+
+def length(v):
+    return math.sqrt(v[0]**2 + v[1]**2)
+def dot_product(v,w):
+   return v[0] * w[0] + v[1] * w[1]
+def determinant(v,w):
+   return v[0] * w[1] - v[1] * w[0]
+def angle(v,w):
+   cosx = dot_product(v,w) / (length(v) * length(w))
+   #det = determinant(A,B)
+   rad = math.acos(cosx) # in radians
+   return rad
+   #return rad*180/math.pi # returns degrees
+
+#Add none to make all lists start at frame 1
+def add_empty_frames(frames, start):
+    updated = copy.copy(frames)
+    for i in range(1, start):
+        updated.insert(0, None)
+    return updated
 
 def main():
     try:
@@ -254,6 +276,8 @@ def main():
 
         com_x_pos = []
         com_y_pos = []
+        com_ang = []
+        inertias = []
         print("Generating Pose")
         while(cap.isOpened()):
             ret, frame = cap.read()
@@ -456,7 +480,6 @@ def main():
                 L_ankle = [datum.poseKeypoints[0][14][0],datum.poseKeypoints[0][14][1]]
                 ankle = None
 
-                
                 if R_ankle[1] == 0 and L_ankle[1] == 0:
                     print("Error- ankle")
                 else:
@@ -466,8 +489,16 @@ def main():
                         ankle = L_ankle
                 CoM = [int(COM_x), int(COM_y)]
                 MMI = calc_inertia(CoM, ankle)
-                print(MMI)
-                    
+                inertias.append(MMI)                    
+
+                #Angle calc
+                #horizontal_axis = [ankle[0] + 10, ankle[1]]
+                horizontal_axis = [10, 0]
+                CoM_to_ankle = [COM_x - ankle[0], ankle[1]- COM_y]
+                ang = angle(CoM_to_ankle, horizontal_axis)
+                com_ang.append(ang) 
+                #print(horizontal_axis)
+                #print(CoM_to_ankle)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
@@ -484,7 +515,18 @@ def main():
         #Calculate frame velocities
         #Averaged 
         start, stop, velocity = calc_avg_vel(com_x_pos, 5, 5)
-        _ ,_ , acceleration = calc_acc(velocity, 5, start)
+        start2, _, acceleration = calc_acc(velocity, 5, start)
+        updated_vel = add_empty_frames(velocity, start)
+        updated_acc = add_empty_frames(acceleration, start2)
+
+        ang_vel_start, _, ang_vel = calc_avg_vel(com_ang, 5, 5)
+        ang_acc_start, _, ang_acc = calc_acc(ang_vel, 5, ang_vel_start)
+        #print(com_ang)
+        #print(ang_vel)
+        #print(ang_acc)
+
+        #CoG, Force, ang_acc, 
+
         #Normal
         #start, stop, velocity = calc_vel(com_x_pos, 5)
         while(cap.isOpened()):
