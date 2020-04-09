@@ -7,6 +7,7 @@ import numpy as np
 import math
 import copy
 from patient import Patient
+import matplotlib.pyplot as plt
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -545,7 +546,7 @@ def main():
         updated_vel = add_empty_frames(velocity, start)
         updated_acc = add_empty_frames(acceleration, start2)
 
-        
+        start_temp, stop_temp, velocity_temp = calc_vel(com_x_pos, 5)
 
         #CoG, Force, ang_acc, 
         ang_vel_start, _, ang_vel = calc_avg_vel(com_ang, 5, 5)
@@ -554,6 +555,31 @@ def main():
         force = calc_force(patient, fps)
         CoG = CoG_x(com_x_pos, ankle_pos)
         CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
+
+        #Graphs
+        x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
+        plt.subplot(3,1,1)
+        plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
+        plt.title("CoM x pos per frame")
+        plt.xlabel("Frame")
+        plt.ylabel("CoM x pos (Pixels)")
+
+        plt.subplot(3,1,2)
+        x2 = np.linspace(start_temp,stop_temp, len(velocity_temp)) 
+        plt.scatter(x2,velocity_temp,label="stars", color="green",marker="*", s=30)
+        plt.title("Velocity per Frame")
+        plt.xlabel("Frame")
+        plt.ylabel("Velocity")
+
+        plt.subplot(3,1,3)
+        x3 = np.linspace(start,stop, len(velocity)) 
+        plt.scatter(x3,velocity,label="stars", color="green",marker="*", s=30)
+        plt.title("Velocity per Frame with Moving average (window 5)")
+        plt.xlabel("Frame")
+        plt.ylabel("Velocity")
+
+        plt.show()
+
 
         #Normal
         #start, stop, velocity = calc_vel(com_x_pos, 5)
@@ -604,6 +630,7 @@ def main():
                     break
             else:
                 break
+        
         cap.release()
         out.release()
         cv2.destroyAllWindows
