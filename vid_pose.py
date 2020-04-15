@@ -6,6 +6,7 @@ import argparse
 import numpy as np
 import math
 import copy
+import scipy.signal
 from patient import Patient
 import matplotlib.pyplot as plt
 
@@ -539,47 +540,70 @@ def main():
         cap = cv2.VideoCapture(vid_location)
         frame_num = 0
         max_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        filtered_comx = scipy.signal.savgol_filter(com_x_pos, 51, 3)
+        filtered_com_ang = scipy.signal.savgol_filter(com_ang, 51, 3)
+
         #Calculate frame velocities
         #Averaged 
-        start, stop, velocity = calc_avg_vel(com_x_pos, 5, 5)
-        start2, _, acceleration = calc_acc(velocity, 5, start)
-        updated_vel = add_empty_frames(velocity, start)
-        updated_acc = add_empty_frames(acceleration, start2)
+        start, stop, velocity = calc_avg_vel(filtered_comx, 5, 5)
+        start2, stop2, acceleration = calc_acc(velocity, 5, start)
+        #updated_vel = add_empty_frames(velocity, start)
+        #updated_acc = add_empty_frames(acceleration, start2)
 
-        start_temp, stop_temp, velocity_temp = calc_vel(com_x_pos, 5)
+        #start_temp, stop_temp, velocity_temp = calc_vel(filtered_comx, 5)
 
         #CoG, Force, ang_acc, 
-        ang_vel_start, _, ang_vel = calc_avg_vel(com_ang, 5, 5)
+        ang_vel_start, _, ang_vel = calc_avg_vel(filtered_com_ang, 5, 5)
         ang_acc_start, ang_acc_stop, ang_acc = calc_acc(ang_vel, 5, ang_vel_start)
         updated_ang_acc = add_empty_frames(ang_acc, ang_acc_start)
         force = calc_force(patient, fps)
-        CoG = CoG_x(com_x_pos, ankle_pos)
+        CoG = CoG_x(filtered_comx, ankle_pos)
         CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
+
 
         #Graphs
         x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
         plt.subplot(3,1,1)
         plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
+        plt.plot(x, filtered_comx, color = 'red')
         plt.title("CoM x pos per frame")
         plt.xlabel("Frame")
         plt.ylabel("CoM x pos (Pixels)")
 
         plt.subplot(3,1,2)
-        x2 = np.linspace(start_temp,stop_temp, len(velocity_temp)) 
-        plt.scatter(x2,velocity_temp,label="stars", color="green",marker="*", s=30)
-        plt.title("Velocity per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("Velocity")
-
-        plt.subplot(3,1,3)
-        x3 = np.linspace(start,stop, len(velocity)) 
-        plt.scatter(x3,velocity,label="stars", color="green",marker="*", s=30)
+        x2 = np.linspace(start,stop, len(velocity)) 
+        plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
         plt.title("Velocity per Frame with Moving average (window 5)")
         plt.xlabel("Frame")
-        plt.ylabel("Velocity")
+        plt.ylabel("Velocity (Pixels/frame)")
+
+        plt.subplot(3,1,3)
+        x3 = np.linspace(start2,stop2, len(acceleration)) 
+        plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
+        plt.title("Accerelation per Frame with Moving average (window 5)")
+        plt.xlabel("Frame")
+        plt.ylabel("Acceleration (Pixels^2/frame")
+
+        # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
+        # plt.subplot(2,1,1)
+        # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
+        # plt.title("CoM x pos per frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("CoM x pos (Pixels)")
+        # plt.plot(x, filtered_comx, color = 'red')
+        # plt.subplot(2,1,2)
+        # plt.scatter(x,com_ang,label="stars", color="green",marker="*", s=30)
+        # plt.title("CoM angle pos per frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("CoM ang pos (radians)")
+        # plt.plot(x, filtered_com_ang, color = 'red')
 
         plt.show()
 
+        #Scipy
+        #curvefit?
+        #savgol_filter
 
         #Normal
         #start, stop, velocity = calc_vel(com_x_pos, 5)
@@ -600,7 +624,7 @@ def main():
                 # Blue color in BGR 
                 color = (255, 0, 0) 
                 thickness = 2
-                COM_x = com_x_pos[frame_num - 1]
+                COM_x = int(filtered_comx[frame_num - 1])
                 COM_y = com_y_pos[frame_num - 1]
                 COM = (COM_x, COM_y)
                 output_frame = datum.cvOutputData
