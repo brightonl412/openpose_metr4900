@@ -174,26 +174,39 @@ def calc_acc_frame(velocity, step_size, frame, vel_start_frame):
         except IndexError:
             print("Frame or step_size out of bounds")
 
-def calc_inertia(CoM, ankle, mass):
+def calc_inertia(CoM, pend_origin, mass):
     """Calculate mass moment of inertia
 
     Mass moment of inertia calculation for the patient. Given by formula: Mr^2,
     where:
         M- Mass
-        r- radius of mass from axis of rotation (ankle)
+        r- radius of mass from axis of rotation (pend_origin)
     The mass moment of inertia is given in kg*pixels^2
 
     Args:
-        CoM - Centre of mass coordinates in pixels
-        ankle - Coorindates of ankle in pixels
+        CoM: list- x and y Centre of Mass coordinates in pixels
+        pend_origin: list- x and y coorindates of pend_origin in pixels
+        mass: int- mass of patient in kg
 
     Returns: Mass moment of inertia 
     """
-    dist = math.sqrt(((CoM[0] - ankle[0])**2) + ((CoM[1] - ankle[1])**2))
+    dist = math.sqrt(((CoM[0] - pend_origin[0])**2) + 
+        ((CoM[1] - pend_origin[1])**2))
     inertia = mass * (dist**2)
     return inertia
 
 def calc_force(patient, fps):
+    """Calculate force on CoM and resultant force on CoP
+
+    The force calculated is the force due to gravity on the patient's mass. This
+    force is converted to units: kg*pixels/frame^2
+
+    Args:
+        Patient: patient object
+        fps:     float- frames per second of the video
+    
+    Returns: Force due to CoM
+    """
     gravity = 9.81 # m/s^2
     mass = patient.mass
     m_to_pixel = patient.pixel_cm * 100
@@ -201,14 +214,40 @@ def calc_force(patient, fps):
     force = mass * acceleration #kg pixels/frame^2
     return force
 
-def CoG_x(CoM_x, ankles):
+def CoG_x(CoM_x, pend_origin):
+    """Center of Gravity x position
+
+    Calulates the x displacement of the CoM to the inverted pendulumn model
+    origin. For a video in the A/P direction the origin will be the ankle, and 
+    in the M/: direction the origin will be the mid point between the 2 ankles.
+
+    Args:
+        CoM_x:       list- positions of x CoM for all frames
+        pend_origin: list- positions of the pendulum origin for all frames
+    
+    Returns: list- x direction CoG for all frames
+    """
     CoG = []
     for i in range(0, len(CoM_x)):
-        CoG_frame = CoM_x[i] - ankles[i][0]
+        CoG_frame = CoM_x[i] - pend_origin[i][0]
         CoG.append(CoG_frame)
     return CoG
 
 def CoP_x(CoG_x, ang_acc, inertia, force):
+    """Center of Pressure x position
+
+    Calulates the x displacement of the CoP to the inverted pendulumn model
+    origin. For a video in the A/P direction the origin will be the ankle, and 
+    in the M/: direction the origin will be the mid point between the 2 ankles.
+
+    Args:
+        CoG_x:   list- positions of x CoG for all frames
+        ang_acc: list- angular acceleration of CoM for all frames
+        inertia: list- mass moment of inertia for all frames
+        force:   int- force due to gravity on CoM
+    
+    Returns: list- x direction CoP from the ang acc start frame
+    """
     CoP = []
     for i in range(0, len(ang_acc)):
         if ang_acc[i] is None:
@@ -219,20 +258,66 @@ def CoP_x(CoG_x, ang_acc, inertia, force):
     return CoP
 
 def length(v):
+    """Computes length of line
+
+    Args:
+        v: list- x and y position of point from origin
+
+    Returns: float- length of line in pixels
+    """
     return math.sqrt(v[0]**2 + v[1]**2)
+
 def dot_product(v,w):
-   return v[0] * w[0] + v[1] * w[1]
+    """Computes dot product between two lines
+
+    Args:
+        v: list- x and y position of point 1 from origin
+        w: list- x and y position of point 2 from origin
+
+    Returns: float- dot product in pixels
+    """
+    return v[0] * w[0] + v[1] * w[1]
+
 def determinant(v,w):
-   return v[0] * w[1] - v[1] * w[0]
+    """Computes determinant of two lines
+
+    Args:
+        v: list- x and y position of point 1 from origin
+        w: list- x and y position of point 2 from origin
+
+    Returns: float- determinant
+    """
+    return v[0] * w[1] - v[1] * w[0]
+
 def angle(v,w):
-   cosx = dot_product(v,w) / (length(v) * length(w))
-   #det = determinant(A,B)
-   rad = math.acos(cosx) # in radians
-   return rad
-   #return rad*180/math.pi # returns degrees
+    """Computes angle between two lines
+
+    Args:
+        v: list- x and y position of point 1 from origin
+        w: list- x and y position of point 2 from origin
+
+    Returns: float- angle between the two lines in radians
+    """
+    cosx = dot_product(v,w) / (length(v) * length(w))
+    #det = determinant(A,B)
+    rad = math.acos(cosx) # in radians
+    return rad
+    #return rad*180/math.pi # returns degrees
 
 #Add none to make all lists start at frame 1
 def add_empty_frames(frames, start):
+    """Add empty frames to list
+
+    Used to add None to start of list so that displacement, velcity and
+    acceleration have the same number of elements.
+
+    Args:
+        frames: list- list to added empty frames
+        start:  int- the frame number which the list initially starts at
+    
+    Returns:
+        list- the updated list with the empty frames added
+    """
     updated = copy.copy(frames)
     for i in range(1, start):
         updated.insert(0, None)
@@ -306,7 +391,7 @@ def main():
         com_y_pos = []
         com_ang = []
         inertias = []
-        ankle_pos = []
+        pend_origin = []
         print("Generating Pose")
         while(cap.isOpened()):
             ret, frame = cap.read()
@@ -520,13 +605,13 @@ def main():
                 MMI = calc_inertia(CoM, ankle, patient.mass)
                 inertias.append(MMI)                    
 
-                #Angle calc
-                #horizontal_axis = [ankle[0] + 10, ankle[1]]
+                #Angle calculation
+                #abitary point on the horizontal axis
                 horizontal_axis = [10, 0]
-                CoM_to_ankle = [COM_x - ankle[0], ankle[1]- COM_y]
-                ang = angle(CoM_to_ankle, horizontal_axis)
+                CoM_to_pend_origin = [COM_x - ankle[0], ankle[1]- COM_y]
+                ang = angle(CoM_to_pend_origin, horizontal_axis)
                 com_ang.append(ang) 
-                ankle_pos.append(ankle)
+                pend_origin.append(ankle)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
@@ -541,24 +626,22 @@ def main():
         frame_num = 0
         max_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+        #Apply Savistky-Golay Filter
         filtered_comx = scipy.signal.savgol_filter(com_x_pos, 51, 3)
         filtered_com_ang = scipy.signal.savgol_filter(com_ang, 51, 3)
 
-        #Calculate frame velocities
-        #Averaged 
-        start, stop, velocity = calc_avg_vel(filtered_comx, 5, 5)
+        #Calculate frame velocities and accelerations
+        start, stop, velocity = calc_vel(filtered_comx, 5)
         start2, stop2, acceleration = calc_acc(velocity, 5, start)
-        #updated_vel = add_empty_frames(velocity, start)
-        #updated_acc = add_empty_frames(acceleration, start2)
 
-        #start_temp, stop_temp, velocity_temp = calc_vel(filtered_comx, 5)
-
-        #CoG, Force, ang_acc, 
-        ang_vel_start, _, ang_vel = calc_avg_vel(filtered_com_ang, 5, 5)
-        ang_acc_start, ang_acc_stop, ang_acc = calc_acc(ang_vel, 5, ang_vel_start)
+        #CoG, Force, Angular Acceleration
+        ang_vel_start, _, ang_vel = calc_vel(filtered_com_ang, 5) #Angular vel
+        ang_acc_start, ang_acc_stop, ang_acc = \
+            calc_acc(ang_vel, 5, ang_vel_start) #Angular acc
+        #Need the updated angular acceleration so that frames match with CoG
         updated_ang_acc = add_empty_frames(ang_acc, ang_acc_start)
         force = calc_force(patient, fps)
-        CoG = CoG_x(filtered_comx, ankle_pos)
+        CoG = CoG_x(filtered_comx, pend_origin)
         CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
 
 
@@ -567,21 +650,21 @@ def main():
         plt.subplot(3,1,1)
         plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
         plt.plot(x, filtered_comx, color = 'red')
-        plt.title("CoM x pos per frame")
+        plt.title("CoM x pos per Frame")
         plt.xlabel("Frame")
         plt.ylabel("CoM x pos (Pixels)")
 
         plt.subplot(3,1,2)
         x2 = np.linspace(start,stop, len(velocity)) 
         plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
-        plt.title("Velocity per Frame with Moving average (window 5)")
+        plt.title("Velocity per Frame")
         plt.xlabel("Frame")
         plt.ylabel("Velocity (Pixels/frame)")
 
         plt.subplot(3,1,3)
         x3 = np.linspace(start2,stop2, len(acceleration)) 
         plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
-        plt.title("Accerelation per Frame with Moving average (window 5)")
+        plt.title("Accerelation per Frame")
         plt.xlabel("Frame")
         plt.ylabel("Acceleration (Pixels^2/frame")
 
@@ -601,12 +684,6 @@ def main():
 
         plt.show()
 
-        #Scipy
-        #curvefit?
-        #savgol_filter
-
-        #Normal
-        #start, stop, velocity = calc_vel(com_x_pos, 5)
         while(cap.isOpened()):
             ret, frame = cap.read()
             if ret == True:
@@ -641,10 +718,10 @@ def main():
                 if (frame_num >= ang_acc_start and
                     frame_num <= ang_acc_stop):
                     CoP_frame = CoP[frame_num - ang_acc_start]
-                    ankle_x = ankle_pos[frame_num - 1][0]
-                    ankle_y = ankle_pos[frame_num - 1][1]
-                    point_2 = (int(ankle_x + CoP_frame), int(ankle_y - 20)) 
-                    point_1 = (int(ankle_x + CoP_frame), ankle_y)
+                    pend_origin_x = pend_origin[frame_num - 1][0]
+                    pend_origin_y = pend_origin[frame_num - 1][1]
+                    point_2 = (int(pend_origin_x + CoP_frame), int(pend_origin_y - 20)) 
+                    point_1 = (int(pend_origin_x + CoP_frame), pend_origin_y)
                     cv2.arrowedLine(output_frame, point_1, point_2, (0,0,255), 3)
 
                 cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
