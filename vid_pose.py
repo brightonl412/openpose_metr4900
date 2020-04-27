@@ -359,8 +359,12 @@ def main():
         #Set gender of patient
         body_perc = patient.body_perc()
 
+        #Set orientation of patient movement
+        orientation = "side"
+        #orientation = "front"
+
         #Video location as a string
-        vid_location = "media/landscape_1.mp4"
+        vid_location = "media/front_landscape_2.mp4"
         #vid_location = "video.avi"
         cap = cv2.VideoCapture(vid_location)
         
@@ -387,6 +391,7 @@ def main():
         frame_num = 0
         unsuccessful_frames = 0
 
+        #lists to store data per frame 
         com_x_pos = []
         com_y_pos = []
         com_ang = []
@@ -394,6 +399,7 @@ def main():
         pend_origin = []
         print("Generating Pose")
         while(cap.isOpened()):
+            
             ret, frame = cap.read()
             #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
@@ -403,6 +409,7 @@ def main():
                 imageToProcess = frame
 
                 frame_num += 1
+                print(frame_num)
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
                     (255,255,255), 1)
                 datum.cvInputData = imageToProcess
@@ -440,151 +447,237 @@ def main():
                 pixel_height = foot_y - nose_y
                 patient.set_pixel_cm(pixel_height)
 
-                #Calulate x CoM
-                COM_x = 0 
-                if R_ear[0] == 0 and L_ear[0] == 0:
-                    print("Error- head")
-                elif R_ear[0] == 0:
-                    COM_x += L_ear[0] * body_perc["head"]
-                else:
-                    COM_x += R_ear[0] * body_perc["head"]
-
-                if body[0] == 0:
-                    print("Error- body")
-                else:
-                    COM_x += body[0] * body_perc["body"]
-
-                if pelvis[0] == 0:
-                    print("Error- pelvis")
-                else:
-                    COM_x += pelvis[0]* body_perc["pelvis"]
-
-                if R_arm[0] == 0 or L_arm[0] == 0:
-                    arms = max(R_arm[0], L_arm[0])
-                    if arms == 0:
-                        print("Error- arm")
-                    else:
-                        COM_x += arms * body_perc["arm"] * 2
-                else:
-                    COM_x += (R_arm[0] + L_arm[0]) * body_perc["arm"]
                 
-                if R_forearm[0] == 0 or (L_forearm[0]) == 0:
-                    forearms = max(R_forearm[0], L_forearm[0])
-                    if forearms == 0:
-                        print("Error- forearm")
+                COM_x = 0 
+                COM_y = 0 
+                if orientation == "side":
+                    #Calulate x CoM
+                    if R_ear[0] == 0 and L_ear[0] == 0:
+                        print("Error- head")
+                    elif R_ear[0] == 0:
+                        COM_x += L_ear[0] * body_perc["head"]
                     else:
-                        COM_x += forearms * body_perc["forearm"] * 2
-                else:
+                        COM_x += R_ear[0] * body_perc["head"]
+
+                    if body[0] == 0:
+                        print("Error- body")
+                    else:
+                        COM_x += body[0] * body_perc["body"]
+
+                    if pelvis[0] == 0:
+                        print("Error- pelvis")
+                    else:
+                        COM_x += pelvis[0]* body_perc["pelvis"]
+
+                    if R_arm[0] == 0 or L_arm[0] == 0:
+                        arms = max(R_arm[0], L_arm[0])
+                        if arms == 0:
+                            print("Error- arm")
+                        else:
+                            COM_x += arms * body_perc["arm"] * 2
+                    else:
+                        COM_x += (R_arm[0] + L_arm[0]) * body_perc["arm"]
+                    
+                    if R_forearm[0] == 0 or (L_forearm[0]) == 0:
+                        forearms = max(R_forearm[0], L_forearm[0])
+                        if forearms == 0:
+                            print("Error- forearm")
+                        else:
+                            COM_x += forearms * body_perc["forearm"] * 2
+                    else:
+                        COM_x += (R_forearm[0] + L_forearm[0]) * body_perc["forearm"]
+
+                    if R_hand[0] == 0 or L_hand[0] == 0:
+                        hands = max(R_hand[0], L_hand[0])
+                        if hands == 0:
+                            print("Error- arm")
+                        else:
+                            COM_x += hands * body_perc["hand"] * 2
+                    else:
+                        COM_x += (R_hand[0] + L_hand[0]) * body_perc["hand"]
+                    
+                    if R_thigh[0] == 0 or L_thigh[0] == 0:
+                        thighs = max(R_thigh[0], L_thigh[0])
+                        if thighs == 0:
+                            print("Error- thigh")
+                        else:
+                            COM_x += thighs * body_perc["thigh"] * 2
+                    else:
+                        COM_x += (R_thigh[0] + L_thigh[0]) * body_perc["thigh"]
+
+                    if R_shank[0] == 0 or L_shank[0] == 0:
+                        shanks = max(R_shank[0], L_shank[0])
+                        if shanks == 0:
+                            print("Error- shank")
+                        else:
+                            COM_x += shanks * body_perc["shank"] * 2
+                    else:
+                        COM_x += (R_shank[0] + L_shank[0]) * body_perc["shank"]
+
+                    if R_foot[0] == 0 or L_foot[0] == 0:
+                        foots = max(R_foot[0], L_foot[0])
+                        if foots == 0:
+                            print("Error- foot")
+                        else:
+                            COM_x += foots * body_perc["foot"] * 2
+                    else:
+                        COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
+
+                    #Calulate y CoM
+                    
+                    if R_ear[1] == 0 and L_ear[1] == 0:
+                        print("Error- head")
+                    elif R_ear[1] == 0:
+                        COM_x += L_ear[1] * body_perc["head"]
+                    else:
+                        COM_x += R_ear[1] * body_perc["head"]
+
+                    if body[1] == 0:
+                        print("Error- body")
+                    else:
+                        COM_y += body[1]* body_perc["body"]
+
+                    if pelvis[1] == 0:
+                        print("Error- pelvis")
+                    else:
+                        COM_y += pelvis[1]* body_perc["pelvis"]
+
+                    if R_arm[1] == 0 or L_arm[1] == 0:
+                        arms = max(R_arm[1], L_arm[1])
+                        if arms == 0:
+                            print("Error- arm")
+                        else:
+                            COM_y += arms * body_perc["arm"] * 2
+                    else:
+                        COM_y += (R_arm[1] + L_arm[1]) * body_perc["arm"]
+
+                    if R_forearm[1] == 0 or L_forearm[1] == 0:
+                        forearms = max(R_forearm[1], L_forearm[1])
+                        if forearms == 0:
+                            print("Error- forearm")
+                        else:
+                            COM_y += forearms * body_perc["forearm"] * 2
+                    else:
+                        COM_y += (R_forearm[1] + L_forearm[1]) * body_perc["forearm"]
+
+                    if R_hand[1] == 0 or L_hand[1] == 0:
+                        hands = max(R_hand[1],L_hand[1])
+                        if hands == 0:
+                            print("Error- hand")
+                        else:
+                            COM_y += hands * body_perc["hand"] * 2
+                    else:
+                        COM_y += (R_hand[1] + L_hand[1]) * body_perc["hand"]
+                    
+                    if R_thigh[1] == 0 or L_thigh[1] == 0:
+                        thighs = max(R_thigh[1], L_thigh[1])
+                        if thighs == 0:
+                            print("Error- thigh")
+                        else:
+                            COM_y += thighs * body_perc["thigh"] * 2
+                    else:
+                        COM_y += (R_thigh[1] + L_thigh[1]) * body_perc["thigh"]
+
+                    if R_shank[1] == 0 or L_shank[1] == 0:
+                        shanks = max(R_shank[1], L_shank[1])
+                        if shanks == 0:
+                            print("Error- shank")
+                        else:
+                            COM_y += shanks * body_perc["shank"] * 2
+                    else:
+                        COM_y += (R_shank[1] + L_shank[1]) * body_perc["shank"]
+
+                    if R_foot[1] == 0 or L_foot[1] == 0:
+                        foots = max(R_foot[1], L_foot[1])
+                        if foots == 0:
+                            print("Error- foot")
+                        else:
+                            COM_y += foots * body_perc["foot"] * 2
+                    else:
+                        COM_y += (R_foot[1] + L_foot[1]) * body_perc["foot"]
+                
+                elif orientation == "front":
+                    #Calulate x CoM
+                    if nose[0] == 0 :
+                        print("Error- head")
+                    else:
+                        COM_x += nose[0] * body_perc["head"]
+
+                    if body[0] == 0:
+                        print("Error- body")
+                    else:
+                        COM_x += body[0] * body_perc["body"]
+
+                    if pelvis[0] == 0:
+                        print("Error- pelvis")
+                    else:
+                        COM_x += pelvis[0]* body_perc["pelvis"]
+
+                    if R_arm[0] == 0 or L_arm[0] == 0:
+                        print("Error- arm")
+                    COM_x += (R_arm[0] + L_arm[0]) * body_perc["arm"]
+                    
+                    if R_forearm[0] == 0 or (L_forearm[0]) == 0:
+                        print("Error- forearm")
                     COM_x += (R_forearm[0] + L_forearm[0]) * body_perc["forearm"]
 
-                if R_hand[0] == 0 or L_hand[0] == 0:
-                    hands = max(R_hand[0], L_hand[0])
-                    if hands == 0:
+                    if R_hand[0] == 0 or L_hand[0] == 0:
                         print("Error- arm")
-                    else:
-                        COM_x += hands * body_perc["hand"] * 2
-                else:
                     COM_x += (R_hand[0] + L_hand[0]) * body_perc["hand"]
-                
-                if R_thigh[0] == 0 or L_thigh[0] == 0:
-                    thighs = max(R_thigh[0], L_thigh[0])
-                    if thighs == 0:
+                    
+                    if R_thigh[0] == 0 or L_thigh[0] == 0:
                         print("Error- thigh")
-                    else:
-                        COM_x += thighs * body_perc["thigh"] * 2
-                else:
                     COM_x += (R_thigh[0] + L_thigh[0]) * body_perc["thigh"]
 
-                if R_shank[0] == 0 or L_shank[0] == 0:
-                    shanks = max(R_shank[0], L_shank[0])
-                    if shanks == 0:
+                    if R_shank[0] == 0 or L_shank[0] == 0:
                         print("Error- shank")
-                    else:
-                        COM_x += shanks * body_perc["shank"] * 2
-                else:
                     COM_x += (R_shank[0] + L_shank[0]) * body_perc["shank"]
 
-                if R_foot[0] == 0 or L_foot[0] == 0:
-                    foots = max(R_foot[0], L_foot[0])
-                    if foots == 0:
+                    if R_foot[0] == 0 or L_foot[0] == 0:
                         print("Error- foot")
-                    else:
-                        COM_x += foots * body_perc["foot"] * 2
-                else:
                     COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
 
-                #Calulate y CoM
-                COM_y = 0 
-                if R_ear[1] == 0 and L_ear[1] == 0:
-                    print("Error- head")
-                elif R_ear[1] == 0:
-                    COM_x += L_ear[1] * body_perc["head"]
-                else:
-                    COM_x += R_ear[1] * body_perc["head"]
-
-                if body[1] == 0:
-                    print("Error- body")
-                else:
-                    COM_y += body[1]* body_perc["body"]
-
-                if pelvis[1] == 0:
-                    print("Error- pelvis")
-                else:
-                    COM_y += pelvis[1]* body_perc["pelvis"]
-
-                if R_arm[1] == 0 or L_arm[1] == 0:
-                    arms = max(R_arm[1], L_arm[1])
-                    if arms == 0:
-                        print("Error- arm")
+                    #Calulate y CoM
+                    if nose[1] == 0 :
+                        print("Error- head")
                     else:
-                        COM_y += arms * body_perc["arm"] * 2
-                else:
+                        COM_y += nose[1] * body_perc["head"]
+
+                    if body[1] == 0:
+                        print("Error- body")
+                    else:
+                        COM_y += body[1]* body_perc["body"]
+
+                    if pelvis[1] == 0:
+                        print("Error- pelvis")
+                    else:
+                        COM_y += pelvis[1]* body_perc["pelvis"]
+
+                    if R_arm[1] == 0 or L_arm[1] == 0:
+                        print("Error- arm")
                     COM_y += (R_arm[1] + L_arm[1]) * body_perc["arm"]
 
-                if R_forearm[1] == 0 or L_forearm[1] == 0:
-                    forearms = max(R_forearm[1], L_forearm[1])
-                    if forearms == 0:
+                    if R_forearm[1] == 0 or L_forearm[1] == 0:
                         print("Error- forearm")
-                    else:
-                        COM_y += forearms * body_perc["forearm"] * 2
-                else:
                     COM_y += (R_forearm[1] + L_forearm[1]) * body_perc["forearm"]
 
-                if R_hand[1] == 0 or L_hand[1] == 0:
-                    hands = max(R_hand[1],L_hand[1])
-                    if hands == 0:
+                    if R_hand[1] == 0 or L_hand[1] == 0:
                         print("Error- hand")
-                    else:
-                        COM_y += hands * body_perc["hand"] * 2
-                else:
                     COM_y += (R_hand[1] + L_hand[1]) * body_perc["hand"]
-                
-                if R_thigh[1] == 0 or L_thigh[1] == 0:
-                    thighs = max(R_thigh[1], L_thigh[1])
-                    if thighs == 0:
+                    
+                    if R_thigh[1] == 0 or L_thigh[1] == 0:
                         print("Error- thigh")
-                    else:
-                        COM_y += thighs * body_perc["thigh"] * 2
-                else:
                     COM_y += (R_thigh[1] + L_thigh[1]) * body_perc["thigh"]
 
-                if R_shank[1] == 0 or L_shank[1] == 0:
-                    shanks = max(R_shank[1], L_shank[1])
-                    if shanks == 0:
+                    if R_shank[1] == 0 or L_shank[1] == 0:
                         print("Error- shank")
-                    else:
-                        COM_y += shanks * body_perc["shank"] * 2
-                else:
                     COM_y += (R_shank[1] + L_shank[1]) * body_perc["shank"]
 
-                if R_foot[1] == 0 or L_foot[1] == 0:
-                    foots = max(R_foot[1], L_foot[1])
-                    if foots == 0:
+                    if R_foot[1] == 0 or L_foot[1] == 0:
                         print("Error- foot")
-                    else:
-                        COM_y += foots * body_perc["foot"] * 2
-                else:
                     COM_y += (R_foot[1] + L_foot[1]) * body_perc["foot"]
+                else:
+                    print("Not a valid orientation")
 
                 com_x_pos.append(int(COM_x))
                 com_y_pos.append(int(COM_y))        
@@ -592,26 +685,37 @@ def main():
                 #Mass Moment of Inertia Calc
                 R_ankle = [datum.poseKeypoints[0][11][0],datum.poseKeypoints[0][11][1]]
                 L_ankle = [datum.poseKeypoints[0][14][0],datum.poseKeypoints[0][14][1]]
-                ankle = None
+                pend = None
 
-                if R_ankle[1] == 0 and L_ankle[1] == 0:
-                    print("Error- ankle")
-                else:
-                    if R_ankle[1] >= L_ankle[1]:
-                        ankle = R_ankle
+                if orientation == "side":
+                    if R_ankle[1] == 0 and L_ankle[1] == 0:
+                        print("Error- ankle")
                     else:
-                        ankle = L_ankle
+                        if R_ankle[1] >= L_ankle[1]:
+                            pend = R_ankle
+                        else:
+                            pend = L_ankle
+                elif orientation == "front":
+                    if R_ankle[1] == 0 or L_ankle[1] == 0:
+                        print("Error- ankle")
+                        #Test- use previous point in list
+                        pend = pend_origin[-1]
+                    else:
+                        pend = [(L_ankle[0] + R_ankle [0]) / 2, 
+                            (L_ankle[0] + R_ankle [0]) / 2]
+                else:
+                    print("Not a valid orientation")
                 CoM = [int(COM_x), int(COM_y)]
-                MMI = calc_inertia(CoM, ankle, patient.mass)
+                MMI = calc_inertia(CoM, pend, patient.mass)
                 inertias.append(MMI)                    
 
                 #Angle calculation
                 #abitary point on the horizontal axis
                 horizontal_axis = [10, 0]
-                CoM_to_pend_origin = [COM_x - ankle[0], ankle[1]- COM_y]
+                CoM_to_pend_origin = [COM_x - pend[0], pend[1]- COM_y]
                 ang = angle(CoM_to_pend_origin, horizontal_axis)
                 com_ang.append(ang) 
-                pend_origin.append(ankle)
+                pend_origin.append(pend)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
