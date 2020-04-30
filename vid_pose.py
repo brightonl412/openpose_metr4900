@@ -1,7 +1,7 @@
 import sys
 import cv2
 import os
-from sys import platform
+#from sys import platform
 import argparse
 import numpy as np
 import math
@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-
 try:
     sys.path.append('/usr/local/python')
     from openpose import pyopenpose as op
@@ -21,7 +20,6 @@ except ImportError as e:
         `BUILD_PYTHON` in CMake and have this Python script in the right \
         folder?')
     raise e
-#import openpose
 
 def calc_vel(position, step_size):
     """Calculate velocity for all possible frames
@@ -323,49 +321,49 @@ def add_empty_frames(frames, start):
         updated.insert(0, None)
     return updated
 
-def main():
+def generate_output(inputvid, model, orientation, gender, height, weight, outputvid):
     try:
         parser = argparse.ArgumentParser()
-        #parser.add_argument("--image_path", default="../../../examples/media/COCO_val2014_000000000192.jpg", help="Process an image. Read all standard formats (jpg, png, bmp, etc.).")
-        #parser.add_argument("--image_dir", default="../openpose/examples/media/COCO_val2014_000000000192.jpg", help="Process an image. Read all standard formats (jpg, png, bmp, etc.).")
         args = parser.parse_known_args()
 
         # Custom Params (refer to include/openpose/flags.hpp for more parameters)
         params = dict()
         #params["model_folder"] = "../../../models/"
-        params["model_folder"] = "../openpose/models/"
+        #params["model_folder"] = "../openpose/models/"
+        params["model_folder"] = model
         #params["number_people_max"] = 1
         #save data as json to folder
         #Find a better way to do this. Currently saves each frame as json
         params["write_json"] = "json_output"
 
         # Add others in path?
-        for i in range(0, len(args[1])):
-            curr_item = args[1][i]
-            if i != len(args[1])-1: next_item = args[1][i+1]
-            else: next_item = "1"
-            if "--" in curr_item and "--" in next_item:
-                key = curr_item.replace('-','')
-                if key not in params:  params[key] = "1"
-            elif "--" in curr_item and "--" not in next_item:
-                key = curr_item.replace('-','')
-                if key not in params: params[key] = next_item
+        # for i in range(0, len(args[1])):
+        #     curr_item = args[1][i]
+        #     if i != len(args[1])-1: next_item = args[1][i+1]
+        #     else: next_item = "1"
+        #     if "--" in curr_item and "--" in next_item:
+        #         key = curr_item.replace('-','')
+        #         if key not in params:  params[key] = "1"
+        #     elif "--" in curr_item and "--" not in next_item:
+        #         key = curr_item.replace('-','')
+        #         if key not in params: params[key] = next_item
 
         opWrapper = op.WrapperPython()
         opWrapper.configure(params)
         opWrapper.start()
         
-        patient = Patient("male", 177, 70)
+        patient = Patient(gender, height, weight)
         #Set gender of patient
         body_perc = patient.body_perc()
 
         #Set orientation of patient movement
-        orientation = "side"
+        #orientation = "side"
         #orientation = "front"
 
         #Video location as a string
-        vid_location = "media/front_landscape_2.mp4"
+        #vid_location = "/home/brightonl412/Documents/openpose_metr4900/media/front_landscape_2.mp4"
         #vid_location = "video.avi"
+        vid_location = inputvid
         cap = cv2.VideoCapture(vid_location)
         
         width = cap.get(3)
@@ -378,18 +376,19 @@ def main():
         video_type = vid_location.split(".")[-1]
         if video_type == "mp4":
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter('media/output.mp4', fourcc, fps, (int(width),
+            location = outputvid + '/output.mp4'
+            out = cv2.VideoWriter(location, fourcc, fps, (int(width),
                 int(height)))
         elif video_type == "avi":
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter('media/output.avi', fourcc, fps, (int(width),
+            location = outputvid + '/output.avi'
+            out = cv2.VideoWriter(location, fourcc, fps, (int(width),
                 int(height)))
         else:
             print("Video format not supported")
             sys.exit(-1)
 
         frame_num = 0
-        unsuccessful_frames = 0
 
         #lists to store data per frame 
         com_x_pos = []
@@ -409,7 +408,6 @@ def main():
                 imageToProcess = frame
 
                 frame_num += 1
-                print(frame_num)
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
                     (255,255,255), 1)
                 datum.cvInputData = imageToProcess
@@ -702,7 +700,7 @@ def main():
                         pend = pend_origin[-1]
                     else:
                         pend = [(L_ankle[0] + R_ankle [0]) / 2, 
-                            (L_ankle[0] + R_ankle [0]) / 2]
+                            (L_ankle[1] + R_ankle [1]) / 2]
                 else:
                     print("Not a valid orientation")
                 CoM = [int(COM_x), int(COM_y)]
@@ -750,27 +748,27 @@ def main():
 
 
         #Graphs
-        x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
-        plt.subplot(3,1,1)
-        plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
-        plt.plot(x, filtered_comx, color = 'red')
-        plt.title("CoM x pos per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("CoM x pos (Pixels)")
+        # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
+        # plt.subplot(3,1,1)
+        # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
+        # plt.plot(x, filtered_comx, color = 'red')
+        # plt.title("CoM x pos per Frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("CoM x pos (Pixels)")
 
-        plt.subplot(3,1,2)
-        x2 = np.linspace(start,stop, len(velocity)) 
-        plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
-        plt.title("Velocity per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("Velocity (Pixels/frame)")
+        # plt.subplot(3,1,2)
+        # x2 = np.linspace(start,stop, len(velocity)) 
+        # plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
+        # plt.title("Velocity per Frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("Velocity (Pixels/frame)")
 
-        plt.subplot(3,1,3)
-        x3 = np.linspace(start2,stop2, len(acceleration)) 
-        plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
-        plt.title("Accerelation per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("Acceleration (Pixels^2/frame")
+        # plt.subplot(3,1,3)
+        # x3 = np.linspace(start2,stop2, len(acceleration)) 
+        # plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
+        # plt.title("Accerelation per Frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("Acceleration (Pixels^2/frame")
 
         # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
         # plt.subplot(2,1,1)
@@ -825,10 +823,10 @@ def main():
                     pend_origin_x = pend_origin[frame_num - 1][0]
                     pend_origin_y = pend_origin[frame_num - 1][1]
                     point_2 = (int(pend_origin_x + CoP_frame), int(pend_origin_y - 20)) 
-                    point_1 = (int(pend_origin_x + CoP_frame), pend_origin_y)
+                    point_1 = (int(pend_origin_x + CoP_frame), int(pend_origin_y))
                     cv2.arrowedLine(output_frame, point_1, point_2, (0,0,255), 3)
 
-                cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
+                cv2.imshow("Output video", output_frame)
                 out.write(output_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -844,5 +842,5 @@ def main():
         print(e)
         sys.exit(-1)
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
