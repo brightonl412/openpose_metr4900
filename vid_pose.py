@@ -1,7 +1,6 @@
 import sys
 import cv2
 import os
-#from sys import platform
 import argparse
 import numpy as np
 import math
@@ -328,48 +327,24 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
 
         # Custom Params (refer to include/openpose/flags.hpp for more parameters)
         params = dict()
-        #params["model_folder"] = "../../../models/"
-        #params["model_folder"] = "../openpose/models/"
         params["model_folder"] = model
-        #params["number_people_max"] = 1
-        #save data as json to folder
         #Find a better way to do this. Currently saves each frame as json
         params["write_json"] = "json_output"
 
-        # Add others in path?
-        # for i in range(0, len(args[1])):
-        #     curr_item = args[1][i]
-        #     if i != len(args[1])-1: next_item = args[1][i+1]
-        #     else: next_item = "1"
-        #     if "--" in curr_item and "--" in next_item:
-        #         key = curr_item.replace('-','')
-        #         if key not in params:  params[key] = "1"
-        #     elif "--" in curr_item and "--" not in next_item:
-        #         key = curr_item.replace('-','')
-        #         if key not in params: params[key] = next_item
-
+        #Configure Openpose Python Wrapper
         opWrapper = op.WrapperPython()
         opWrapper.configure(params)
         opWrapper.start()
         
+        #Create patient object of person in video
         patient = Patient(gender, height, weight)
-        #Set gender of patient
         body_perc = patient.body_perc()
 
-        #Set orientation of patient movement
-        #orientation = "side"
-        #orientation = "front"
-
-        #Video location as a string
-        #vid_location = "/home/brightonl412/Documents/openpose_metr4900/media/front_landscape_2.mp4"
-        #vid_location = "video.avi"
         vid_location = inputvid
         cap = cv2.VideoCapture(vid_location)
-        
         width = cap.get(3)
         height = cap.get(4)
         fps = cap.get(5)
-
         font = cv2.FONT_HERSHEY_SIMPLEX
         
         #Find Video Format
@@ -396,9 +371,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         com_ang = []
         inertias = []
         pend_origin = []
+
         print("Generating Pose")
         while(cap.isOpened()):
-            
             ret, frame = cap.read()
             #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
@@ -413,7 +388,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 datum.cvInputData = imageToProcess
                 opWrapper.emplaceAndPop([datum])
                 
-                #Change to tuple
+                #limb positions
                 body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
                 pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
 
@@ -522,7 +497,6 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                         COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
 
                     #Calulate y CoM
-                    
                     if R_ear[1] == 0 and L_ear[1] == 0:
                         print("Error- head")
                     elif R_ear[1] == 0:
@@ -708,8 +682,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 inertias.append(MMI)                    
 
                 #Angle calculation
-                #abitary point on the horizontal axis
-                horizontal_axis = [10, 0]
+                horizontal_axis = [10, 0] #abitary point on the horizontal axis
                 CoM_to_pend_origin = [COM_x - pend[0], pend[1]- COM_y]
                 ang = angle(CoM_to_pend_origin, horizontal_axis)
                 com_ang.append(ang) 
@@ -784,8 +757,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         # plt.ylabel("CoM ang pos (radians)")
         # plt.plot(x, filtered_com_ang, color = 'red')
 
-        plt.show()
+        #plt.show()
 
+        #Show each frame and save to output folder
         while(cap.isOpened()):
             ret, frame = cap.read()
             if ret == True:

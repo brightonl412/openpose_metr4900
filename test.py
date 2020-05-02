@@ -50,7 +50,7 @@ def main():
         opWrapper.start()
 
         #Video location as a string
-        vid_location = "media/front_landscape_2.mp4"
+        vid_location = "media/side_landscape_2.mp4"
         #vid_location = "video.avi"
         cap = cv2.VideoCapture(vid_location)
         

@@ -171,29 +171,45 @@ class Ui_MainWindow(object):
         self.sideButton.setText(_translate("MainWindow", "Side"))
     
     def inputFileNameDialog(self):
-        #options = QtWidgets.QFileDialog.Options()
-        # options |= QFileDialog.DontUseNativeDialog
-        fileName = str(QtWidgets.QFileDialog.getOpenFileName(None, "Select Video", os.getcwd(), "Video files (*.avi *.mp4)" ))
+        """Select Input Video button event
+
+        Opens current directory and allows selection of avi and mp4 video files.
+        """
+        fileName = str(QtWidgets.QFileDialog.getOpenFileName(None, 
+            "Select Video", os.getcwd(), "Video files (*.avi *.mp4)" ))
         if fileName:
-            # self.Databasefile.setText(fileName[0])
-            #print(fileName)
             dir = fileName.split(",")
             start = dir[0].find("'") + len("'")
             directory = dir[0][start:len(dir[0])-1]
             self.lineEdit.setText(directory)
-            #return fileName
 
     def modelFileNameDialog(self):
-        fileName = str(QtWidgets.QFileDialog.getExistingDirectory(None, "Select Directory" ,"/home"))
+        """Select Openpose model folder button event
+
+        Opens home directory and used to select openpose models folder
+        """
+        fileName = str(QtWidgets.QFileDialog.getExistingDirectory(None, 
+            "Select Directory" ,"/home"))
         if fileName:
             self.lineEdit_2.setText(fileName)
     
     def outputFileNameDialog(self):
-        fileName = str(QtWidgets.QFileDialog.getExistingDirectory(None, "Select Directory", os.getcwd()))
+        """Select output video folder button event
+
+        Opens current directory and used to select where the output video should
+        be saved
+        """
+        fileName = str(QtWidgets.QFileDialog.getExistingDirectory(None, 
+            "Select Directory", os.getcwd()))
         if fileName:
             self.lineEdit_3.setText(fileName)
     
     def generateAction(self):
+        """Generate Output
+
+        Checks that all inputs are filled out and runs generate_output from 
+        vid_pose.py
+        """
         inputvid = self.lineEdit.text()
         model = self.lineEdit_2.text()
 
@@ -212,9 +228,10 @@ class Ui_MainWindow(object):
                 gender = "female"
         else:
             gender = "male"
-        height = int(self.heightInput.text())
-        weight = int(self.weightInput.text())
         outputvid = self.lineEdit_3.text()
+
+        height = self.heightInput.text()
+        weight = self.weightInput.text()
         
         if (inputvid == '' or model =='' or orientation is None or gender is None 
             or height == '' or weight =='' or outputvid == ''):
@@ -225,9 +242,10 @@ class Ui_MainWindow(object):
             msg.setWindowTitle("Error")
             msg.exec_()
         else:
+            height = int(self.heightInput.text())
+            weight = int(self.weightInput.text())
             vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid)
-            sys.exit(app.exec_())
-            
+    
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
