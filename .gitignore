@@ -1,2 +1,4 @@
 **/json_output
 /media
+/.vscode
+/__pycache__
