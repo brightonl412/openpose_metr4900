@@ -26,9 +26,11 @@ class External(QtCore.QThread):
 
     def run(self):
         count = 0
-        while count < TIME_LIMIT:
+        while count < 100:
+            time.sleep(0.5)
             count +=1
-            self.countChanged.emit(self.frame_counter.progress)
+            print(count)
+            self.countChanged.emit(count)
             if self.frame_counter.progress == 100:
                 break
 
@@ -39,8 +41,8 @@ def test3_func(progressUI):
     #a.incre_frame()
     #print(a.current_frame)
     progressUI.start(External(a))
-    a.incre_frame()
-    a.incre_frame()
+    #a.incre_frame()
+    #a.incre_frame()
 
 if __name__=='__main__':
 	app = QApplication(sys.argv)

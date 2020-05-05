@@ -1,9 +1,7 @@
 import vid_pose 
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QBasicTimer
 import progress
-import time
 
 class progressView(QtWidgets.QWidget):
     def __init__(self):
@@ -15,24 +13,9 @@ class progressView(QtWidgets.QWidget):
         self.progressBar.setProperty("value", self.progressVal)
         self.progressBar.setObjectName("progressBar")
         self.progressBar.setRange(0, 100)
-        self.timer = QBasicTimer()
         self.step = 0
+        self.setWindowTitle('Openpose Progress')
 
-    def startProgress(self):
-	    if self.timer.isActive():
-		    self.timer.stop()
-	    else:
-		    self.timer.start(100, self)
-
-    def timerEvent(self, event):
-	    if self.step >= 100:
-		    self.timer.stop()
-		    self.btnStart.setText('Start')
-		    return
-
-	    self.step +=1
-	    self.progressBar.setValue(self.step)
-    
     def setProgress(self, val):
         self.progressBar.setValue(val)
 
@@ -260,7 +243,6 @@ class Ui_MainWindow(object):
         Checks that all inputs are filled out and runs generate_output from 
         vid_pose.py
         """
-        
 
         inputvid = self.lineEdit.text()
         model = self.lineEdit_2.text()
@@ -296,9 +278,9 @@ class Ui_MainWindow(object):
         else:
             height = int(self.heightInput.text())
             weight = int(self.weightInput.text())
-            #self.progressView = progressView()
-            #self.progressView.show()
-            vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid)
+            self.progressView = progressView()
+            self.progressView.show()
+            vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid, self.progressView)
     
 if __name__ == "__main__":
     import sys

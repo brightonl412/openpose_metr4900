@@ -323,8 +323,36 @@ def add_empty_frames(frames, start):
     for i in range(1, start):
         updated.insert(0, None)
     return updated
+class Frame_Counter():
+    def __init__(self, max_frames):
+        self.max_frames = max_frames
+        self.current_frame = 0
+        self.progress = 0
 
-def generate_output(inputvid, model, orientation, gender, height, weight, outputvid):
+    def incre_frame(self):
+        self.current_frame += 1
+        self.progress = (self.current_frame/self.max_frames)*100
+
+TIME_LIMIT = 2400000000000000000000000000
+class External(QtCore.QThread):
+    """
+    Runs a counter thread.
+    """
+    countChanged = QtCore.pyqtSignal(int)
+    def __init__(self, frame_counter):
+        super(External, self).__init__()
+        self.frame_counter = frame_counter
+
+    def run(self):
+        count = 0
+        while count < TIME_LIMIT:
+            time.sleep(0.1)
+            count +=1
+            self.countChanged.emit(self.frame_counter.progress)
+            if self.frame_counter.progress == 100:
+                break
+
+def generate_output(inputvid, model, orientation, gender, height, weight, outputvid, progressUI):
     try:
 
         parser = argparse.ArgumentParser()
@@ -372,6 +400,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         frame_num = 0
         pbar = tqdm(total=100)
         progress = (1 / total_frames) * 100
+        fc = Frame_Counter(total_frames)
+        progressUI.start(External(fc))
 
 
         #lists to store data per frame 
@@ -392,6 +422,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 imageToProcess = frame
 
                 frame_num += 1
+                fc.incre_frame()
+                QApplication.processEvents() 
+
                 pbar.update(progress)
                 
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
