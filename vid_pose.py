@@ -8,6 +8,10 @@ import copy
 import scipy.signal
 from patient import Patient
 import matplotlib.pyplot as plt
+from PyQt5.QtWidgets import QWidget, QProgressBar, QPushButton, QApplication
+from PyQt5 import QtCore
+from tqdm import tqdm
+import time
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -322,6 +326,7 @@ def add_empty_frames(frames, start):
 
 def generate_output(inputvid, model, orientation, gender, height, weight, outputvid):
     try:
+
         parser = argparse.ArgumentParser()
         args = parser.parse_known_args()
 
@@ -346,6 +351,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         height = cap.get(4)
         fps = cap.get(5)
         font = cv2.FONT_HERSHEY_SIMPLEX
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         #Find Video Format
         video_type = vid_location.split(".")[-1]
@@ -364,6 +370,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
             sys.exit(-1)
 
         frame_num = 0
+        pbar = tqdm(total=100)
+        progress = (1 / total_frames) * 100
+
 
         #lists to store data per frame 
         com_x_pos = []
@@ -383,6 +392,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 imageToProcess = frame
 
                 frame_num += 1
+                pbar.update(progress)
+                
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
                     (255,255,255), 1)
                 datum.cvInputData = imageToProcess
@@ -695,6 +706,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         cap.release()
         #out.release()
         cv2.destroyAllWindows
+        pbar.close
 
         print("Generating Output")
         cap = cv2.VideoCapture(vid_location)

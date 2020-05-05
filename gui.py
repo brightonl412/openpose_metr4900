@@ -1,6 +1,49 @@
 import vid_pose 
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QBasicTimer
+import progress
+import time
+
+class progressView(QtWidgets.QWidget):
+    def __init__(self):
+        super(progressView, self).__init__()
+        #self.theText = QtWidgets.QLabel('test', self )
+        self.progressVal = 0
+        self.progressBar = QtWidgets.QProgressBar(self)
+        self.progressBar.setGeometry(QtCore.QRect(20, 70, 230, 23))
+        self.progressBar.setProperty("value", self.progressVal)
+        self.progressBar.setObjectName("progressBar")
+        self.progressBar.setRange(0, 100)
+        self.timer = QBasicTimer()
+        self.step = 0
+
+    def startProgress(self):
+	    if self.timer.isActive():
+		    self.timer.stop()
+	    else:
+		    self.timer.start(100, self)
+
+    def timerEvent(self, event):
+	    if self.step >= 100:
+		    self.timer.stop()
+		    self.btnStart.setText('Start')
+		    return
+
+	    self.step +=1
+	    self.progressBar.setValue(self.step)
+    
+    def setProgress(self, val):
+        self.progressBar.setValue(val)
+
+    def start(self, thread):
+        #self.calc = External()
+        self.calc = thread
+        self.calc.countChanged.connect(self.onCountChanged)
+        self.calc.start()
+
+    def onCountChanged(self, value):
+        self.progressBar.setValue(value)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -10,6 +53,13 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
         self.layoutWidget1 = QtWidgets.QWidget(self.centralwidget)
         self.layoutWidget2 = QtWidgets.QWidget(self.centralwidget)
+
+        # self.progressVal = 0
+        # self.progressBar = QtWidgets.QProgressBar(self.centralwidget)
+        # self.progressBar.setGeometry(QtCore.QRect(20, 70, 230, 23))
+        # self.progressBar.setProperty("value", self.progressVal)
+        # self.progressBar.setObjectName("progressBar")
+        # self.progressBar.setRange(0, 150)
 
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(240, 0, 71, 31))
@@ -210,6 +260,8 @@ class Ui_MainWindow(object):
         Checks that all inputs are filled out and runs generate_output from 
         vid_pose.py
         """
+        
+
         inputvid = self.lineEdit.text()
         model = self.lineEdit_2.text()
 
@@ -244,6 +296,8 @@ class Ui_MainWindow(object):
         else:
             height = int(self.heightInput.text())
             weight = int(self.weightInput.text())
+            #self.progressView = progressView()
+            #self.progressView.show()
             vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid)
     
 if __name__ == "__main__":
