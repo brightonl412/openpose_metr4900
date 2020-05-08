@@ -11,7 +11,6 @@
  <br><br>
  Example input videos can be found in the media folder. If these videos are used, the patient height and mass should be 177, 70 respectively. The model directory should be the /models folder in your installation of Openpose.
  <br><br>
- **Note:** There is currently no progress bar, so it may take some time before any output is shown due to openpose taking time to generate a pose.
 
 ### Installation
 Ensure that Openpose is correctly installed by following:
