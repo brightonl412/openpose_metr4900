@@ -1,6 +1,7 @@
 import sys
 import cv2
 import os
+from sys import platform
 import argparse
 import numpy as np
 import math
@@ -8,13 +9,9 @@ import copy
 import scipy.signal
 from patient import Patient
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QWidget, QProgressBar, QPushButton, QApplication
-from PyQt5 import QtCore
-from tqdm import tqdm
-import time
-import json
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
 
 try:
     sys.path.append('/usr/local/python')
@@ -24,6 +21,7 @@ except ImportError as e:
         `BUILD_PYTHON` in CMake and have this Python script in the right \
         folder?')
     raise e
+#import openpose
 
 def calc_vel(position, step_size):
     """Calculate velocity for all possible frames
@@ -324,87 +322,74 @@ def add_empty_frames(frames, start):
     for i in range(1, start):
         updated.insert(0, None)
     return updated
-    
-class Frame_Counter():
-    def __init__(self, max_frames):
-        self.max_frames = max_frames
-        self.current_frame = 0
-        self.progress = 0
 
-    def incre_frame(self):
-        self.current_frame += 1
-        self.progress = (self.current_frame/self.max_frames)*100
-
-TIME_LIMIT = 2400000000000000000000000000
-class External(QtCore.QThread):
-    """
-    Runs a counter thread.
-    """
-    countChanged = QtCore.pyqtSignal(int)
-    def __init__(self, frame_counter):
-        super(External, self).__init__()
-        self.frame_counter = frame_counter
-
-    def run(self):
-        count = 0
-        while count < TIME_LIMIT:
-            time.sleep(0.1)
-            count +=1
-            self.countChanged.emit(self.frame_counter.progress)
-            if self.frame_counter.progress == 100:
-                break
-
-def generate_output(inputvid, model, orientation, gender, height, weight, outputvid, progressUI):
+def main():
     try:
-
         parser = argparse.ArgumentParser()
+        #parser.add_argument("--image_path", default="../../../examples/media/COCO_val2014_000000000192.jpg", help="Process an image. Read all standard formats (jpg, png, bmp, etc.).")
+        #parser.add_argument("--image_dir", default="../openpose/examples/media/COCO_val2014_000000000192.jpg", help="Process an image. Read all standard formats (jpg, png, bmp, etc.).")
         args = parser.parse_known_args()
 
         # Custom Params (refer to include/openpose/flags.hpp for more parameters)
         params = dict()
-        params["model_folder"] = model
+        #params["model_folder"] = "../../../models/"
+        params["model_folder"] = "../openpose/models/"
+        #params["number_people_max"] = 1
+        #save data as json to folder
         #Find a better way to do this. Currently saves each frame as json
         params["write_json"] = "json_output"
 
-        #Configure Openpose Python Wrapper
+        # Add others in path?
+        for i in range(0, len(args[1])):
+            curr_item = args[1][i]
+            if i != len(args[1])-1: next_item = args[1][i+1]
+            else: next_item = "1"
+            if "--" in curr_item and "--" in next_item:
+                key = curr_item.replace('-','')
+                if key not in params:  params[key] = "1"
+            elif "--" in curr_item and "--" not in next_item:
+                key = curr_item.replace('-','')
+                if key not in params: params[key] = next_item
+
         opWrapper = op.WrapperPython()
         opWrapper.configure(params)
         opWrapper.start()
         
-        #Create patient object of person in video
-        patient = Patient(gender, height, weight)
+        patient = Patient("male", 177, 70)
+        #Set gender of patient
         body_perc = patient.body_perc()
 
-        vid_location = inputvid
+        #Set orientation of patient movement
+        orientation = "side"
+        #orientation = "front"
+
+        #Video location as a string
+        vid_location = "media/side_landscape.mp4"
+        #vid_location = "video.avi"
         cap = cv2.VideoCapture(vid_location)
+        
         width = cap.get(3)
         height = cap.get(4)
         fps = cap.get(5)
+
         font = cv2.FONT_HERSHEY_SIMPLEX
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         #Find Video Format
         video_type = vid_location.split(".")[-1]
         if video_type == "mp4":
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            location = outputvid + '/output.mp4'
-            out = cv2.VideoWriter(location, fourcc, fps, (int(width),
+            out = cv2.VideoWriter('media/output.mp4', fourcc, fps, (int(width),
                 int(height)))
         elif video_type == "avi":
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            location = outputvid + '/output.avi'
-            out = cv2.VideoWriter(location, fourcc, fps, (int(width),
+            out = cv2.VideoWriter('media/output.avi', fourcc, fps, (int(width),
                 int(height)))
         else:
             print("Video format not supported")
             sys.exit(-1)
 
         frame_num = 0
-        pbar = tqdm(total=100)
-        progress = (1 / total_frames) * 100
-        fc = Frame_Counter(total_frames)
-        progressUI.start(External(fc))
-
+        unsuccessful_frames = 0
 
         #lists to store data per frame 
         com_x_pos = []
@@ -412,12 +397,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         com_ang = []
         inertias = []
         pend_origin = []
-
-        json_data = {}
-        json_data['openpose'] = []
-
         print("Generating Pose")
         while(cap.isOpened()):
+            
             ret, frame = cap.read()
             #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
@@ -427,45 +409,12 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 imageToProcess = frame
 
                 frame_num += 1
-                fc.incre_frame()
-                QApplication.processEvents() 
-
-                pbar.update(progress)
-                
                 cv2.putText(imageToProcess, str(frame_num), (100,100), font, 1, 
                     (255,255,255), 1)
                 datum.cvInputData = imageToProcess
                 opWrapper.emplaceAndPop([datum])
                 
-                json_data['openpose'].append({frame_num:{
-                    'Nose': [float(datum.poseKeypoints[0][0][0]),float(datum.poseKeypoints[0][0][1])],
-                    'Neck': [float(datum.poseKeypoints[0][1][0]),float(datum.poseKeypoints[0][1][1])],
-                    'RShoulder': [float(datum.poseKeypoints[0][2][0]),float(datum.poseKeypoints[0][2][1])],
-                    'RElbow': [float(datum.poseKeypoints[0][3][0]),float(datum.poseKeypoints[0][3][1])],
-                    'RWrist': [float(datum.poseKeypoints[0][4][0]),float(datum.poseKeypoints[0][4][1])],
-                    'LShoulder': [float(datum.poseKeypoints[0][5][0]),float(datum.poseKeypoints[0][5][1])],
-                    'LElbow': [float(datum.poseKeypoints[0][6][0]),float(datum.poseKeypoints[0][6][1])],
-                    'LWrist': [float(datum.poseKeypoints[0][7][0]),float(datum.poseKeypoints[0][7][1])],
-                    'MidHip': [float(datum.poseKeypoints[0][8][0]),float(datum.poseKeypoints[0][8][1])],
-                    'RHip': [float(datum.poseKeypoints[0][9][0]),float(datum.poseKeypoints[0][9][1])],
-                    'RKnee': [float(datum.poseKeypoints[0][10][0]),float(datum.poseKeypoints[0][10][1])],
-                    'RAnkle': [float(datum.poseKeypoints[0][11][0]),float(datum.poseKeypoints[0][11][1])],
-                    'LHip': [float(datum.poseKeypoints[0][12][0]),float(datum.poseKeypoints[0][12][1])],
-                    'LKnee': [float(datum.poseKeypoints[0][13][0]),float(datum.poseKeypoints[0][13][1])],
-                    'LAnkle': [float(datum.poseKeypoints[0][14][0]),float(datum.poseKeypoints[0][14][1])],
-                    'REye': [float(datum.poseKeypoints[0][15][0]),float(datum.poseKeypoints[0][15][1])],
-                    'LEye': [float(datum.poseKeypoints[0][16][0]),float(datum.poseKeypoints[0][16][1])],
-                    'REar': [float(datum.poseKeypoints[0][17][0]),float(datum.poseKeypoints[0][17][1])],
-                    'LEar': [float(datum.poseKeypoints[0][18][0]),float(datum.poseKeypoints[0][18][1])],
-                    'LBigToe': [float(datum.poseKeypoints[0][19][0]),float(datum.poseKeypoints[0][19][1])],
-                    'LSmallToe': [float(datum.poseKeypoints[0][20][0]),float(datum.poseKeypoints[0][20][1])],
-                    'LHeel': [float(datum.poseKeypoints[0][21][0]),float(datum.poseKeypoints[0][21][1])],
-                    'RBigToe': [float(datum.poseKeypoints[0][22][0]),float(datum.poseKeypoints[0][22][1])],
-                    'RSmallToe': [float(datum.poseKeypoints[0][23][0]),float(datum.poseKeypoints[0][23][1])],
-                    'RHeel': [float(datum.poseKeypoints[0][24][0]),float(datum.poseKeypoints[0][24][1])],
-                }})
-
-                #limb positions
+                #Change to tuple
                 body = [(datum.poseKeypoints[0][1][0] + datum.poseKeypoints[0][8][0])/2, (datum.poseKeypoints[0][1][1] +datum.poseKeypoints[0][8][1])/2]
                 pelvis = [datum.poseKeypoints[0][8][0],datum.poseKeypoints[0][8][1]]
 
@@ -574,6 +523,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                         COM_x += (R_foot[0] + L_foot[0]) * body_perc["foot"]
 
                     #Calulate y CoM
+                    
                     if R_ear[1] == 0 and L_ear[1] == 0:
                         print("Error- head")
                     elif R_ear[1] == 0:
@@ -759,7 +709,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 inertias.append(MMI)                    
 
                 #Angle calculation
-                horizontal_axis = [10, 0] #abitary point on the horizontal axis
+                #abitary point on the horizontal axis
+                horizontal_axis = [10, 0]
                 CoM_to_pend_origin = [COM_x - pend[0], pend[1]- COM_y]
                 ang = angle(CoM_to_pend_origin, horizontal_axis)
                 com_ang.append(ang) 
@@ -772,12 +723,6 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         cap.release()
         #out.release()
         cv2.destroyAllWindows
-        pbar.close
-
-        #TODO: Print in a json folder- determine naming system
-        print("Generating Json")
-        with open('data.json', 'w') as outfile:
-            json.dump(json_data, outfile, indent=4)
 
         print("Generating Output")
         cap = cv2.VideoCapture(vid_location)
@@ -791,6 +736,12 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         #Calculate frame velocities and accelerations
         start, stop, velocity = calc_vel(filtered_comx, 5)
         start2, stop2, acceleration = calc_acc(velocity, 5, start)
+        
+        #start, stop, velocity = calc_vel(com_x_pos, 5)
+        #start2, stop2, acceleration = calc_acc(velocity, 5, start)
+
+        # start, stop, velocity = calc_avg_vel(com_x_pos, 5, 5)
+        # start2, stop2, acceleration = calc_acc(velocity, 5, start)
 
         #CoG, Force, Angular Acceleration
         ang_vel_start, _, ang_vel = calc_vel(filtered_com_ang, 5) #Angular vel
@@ -802,12 +753,90 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         CoG = CoG_x(filtered_comx, pend_origin)
         CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
 
+        # ang_vel_start, _, ang_vel = calc_avg_vel(com_ang, 5,5) #Angular vel
+        # ang_acc_start, ang_acc_stop, ang_acc = \
+        #     calc_acc(ang_vel, 5, ang_vel_start) #Angular acc
+        # #Need the updated angular acceleration so that frames match with CoG
+        # updated_ang_acc = add_empty_frames(ang_acc, ang_acc_start)
+        # force = calc_force(patient, fps)
+        # CoG = CoG_x(com_x_pos, pend_origin)
+        # CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
+        com_diff = []
+        for i in range(0,len(pend_origin)):
+            com_diff.append(filtered_comx[i]-int(pend_origin[i][0]))
+        #pend_origin_x = pend_origin[:][0]
+        
+        filtered_com_diff= scipy.signal.savgol_filter(com_diff, 21, 3)
+        #print(len(filtered_comx))
+        #print(len(CoP))
+        #print(len(acceleration))
 
+        keep = CoG[10:]
+        #keep = com_diff[10:]
+        #keep = filtered_com_diff[10:]
+        #print(len(c))
+        #print(CoP)
+        #print(keep)
+        error=[]
+        for i in range(0,len(keep)):
+            error.append(CoP[i]-keep[i])
+        filtered_error = scipy.signal.savgol_filter(error, 21, 3)
+        #error = CoP-keep
+
+        fig, ax1 = plt.subplots()
+        x = np.linspace(start2,stop2, len(acceleration)) 
+        color = 'tab:red'
+        ax1.set_xlabel("Frame")
+        ax1.set_ylabel("Accerelation (Pixels/frame^2)", color=color)
+        ax1.tick_params(axis='y', labelcolor=color)
+        ax1.set_xlim(11,155)
+        ax1.set_ylim((-0.2, 0.2))
+        a=ax1.plot(x,acceleration,label="COMacc", color=color)
+        #b=plt.plot(x, d, color = 'red', label = 'COP-COM')
+        #plt.legend([a,b], ['COMacc','COP-COM'])
+        plt.title("CoP-CoM and CoM Over Time")
+        #plt.xlabel("Frame")
+        #plt.ylabel("Accerelation (Pixels/frame^2)")
+
+        ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+        color = 'tab:blue'
+        x2 = np.linspace(start2,stop2, len(acceleration))
+        ax2.set_ylabel("COP-COM (Pixels)", color=color)  # we already handled the x-label with ax1
+        ax2.set_ylim((-20, 20))
+        ax2.plot(x2, error, color=color)
+        ax2.tick_params(axis='y', labelcolor=color)
+
+        # ax3 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+        # color = 'tab:black'
+        # ax3.set_ylim((-0.2, 0.2))
+        plt.axhline(y=0, color='black')
+        plt.subplots_adjust(hspace = 0.9, top = 0.45)
+
+        
+        # x = np.linspace(start2,stop2, len(acceleration)) 
+        # plt.subplot(2,1,1)
+        # a=plt.plot(x,acceleration,label="COMacc", color="green")
+        # #b=plt.plot(x, d, color = 'red', label = 'COP-COM')
+        # #plt.legend([a,b], ['COMacc','COP-COM'])
+        # plt.title("?")
+        # plt.xlabel("Frame")
+        # plt.ylabel("Accerelation (Pixels/frame^2)")
+
+        # plt.subplot(2,1,2)
+        # x2 = np.linspace(start2,stop2, len(acceleration)) 
+        # b=plt.plot(x2, filtered_error, color = 'red', label = 'COP-COM')
+        # # plt.title("Velocity per Frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("COP-COM (Pixels)")
         #Graphs
+        #fig, axes = plt.subplots(nrows=3, ncols=1)
+        #fig.tight_layout(pad = 5)
+
         # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
         # plt.subplot(3,1,1)
-        # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
-        # plt.plot(x, filtered_comx, color = 'red')
+        # a=plt.scatter(x,com_x_pos,label="unfiltered", color="green",marker="*", s=30,)
+        # b=plt.plot(x, filtered_comx, color = 'red', label = 'filtered')
+        # plt.legend([a,b], ['unfiltered','filtered'])
         # plt.title("CoM x pos per Frame")
         # plt.xlabel("Frame")
         # plt.ylabel("CoM x pos (Pixels)")
@@ -824,10 +853,13 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         # plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
         # plt.title("Accerelation per Frame")
         # plt.xlabel("Frame")
-        # plt.ylabel("Acceleration (Pixels^2/frame")
+        # plt.ylabel("Acceleration (Pixels/frame^2)")
+        
+        #plt.subplots_adjust(hspace = 0.9, top = 0.9)
+
 
         # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
-        # plt.subplot(2,1,1)
+        # plt.subplot(2,1,1)front
         # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
         # plt.title("CoM x pos per frame")
         # plt.xlabel("Frame")
@@ -840,9 +872,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         # plt.ylabel("CoM ang pos (radians)")
         # plt.plot(x, filtered_com_ang, color = 'red')
 
-        #plt.show()
+        plt.show()
 
-        #Show each frame and save to output folder
         while(cap.isOpened()):
             ret, frame = cap.read()
             if ret == True:
@@ -880,10 +911,10 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                     pend_origin_x = pend_origin[frame_num - 1][0]
                     pend_origin_y = pend_origin[frame_num - 1][1]
                     point_2 = (int(pend_origin_x + CoP_frame), int(pend_origin_y - 20)) 
-                    point_1 = (int(pend_origin_x + CoP_frame), int(pend_origin_y))
+                    point_1 = (int(pend_origin_x + CoP_frame), pend_origin_y)
                     cv2.arrowedLine(output_frame, point_1, point_2, (0,0,255), 3)
 
-                cv2.imshow("Output video", output_frame)
+                cv2.imshow("OpenPose 1.5.1 - Tutorial Python API", output_frame)
                 out.write(output_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -899,5 +930,5 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         print(e)
         sys.exit(-1)
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()

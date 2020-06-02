@@ -33,19 +33,3 @@ class External(QtCore.QThread):
             self.countChanged.emit(count)
             if self.frame_counter.progress == 100:
                 break
-
-
-def test3_func(progressUI):
-    a= Frame_Counter(100)
-    #print(a.max_frames)
-    #a.incre_frame()
-    #print(a.current_frame)
-    progressUI.start(External(a))
-    #a.incre_frame()
-    #a.incre_frame()
-
-if __name__=='__main__':
-	app = QApplication(sys.argv)
-
-
-	sys.exit(app.exec_())
