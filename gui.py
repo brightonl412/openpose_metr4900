@@ -1,4 +1,5 @@
 import vid_pose 
+import openpose_output
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 import progress
@@ -280,7 +281,8 @@ class Ui_MainWindow(object):
             weight = int(self.weightInput.text())
             self.progressView = progressView()
             self.progressView.show()
-            vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid, self.progressView)
+            file_name = openpose_output.get_keypoints(inputvid, model, self.progressView)
+            vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid, file_name)
     
 if __name__ == "__main__":
     import sys
