@@ -2,6 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal
+import scipy.stats
 
 def fill_data(value, time):
     """Fills/interpolates data
@@ -47,9 +48,10 @@ with open('wii/front.csv') as csv_file:
         line_count += 1
 
 
-filtered_copy = scipy.signal.savgol_filter(COP_y, 51, 3)
+filtered = scipy.signal.savgol_filter(COP_y, 51, 3)
 
 resampled_data, resampled_time = fill_data(COP_y, time)
+resampled_filtered , _ = fill_data(filtered, time)
 
 #Plot data
 plt.subplot(2,1,1)
@@ -65,7 +67,9 @@ plt.xlabel("Time (ms)")
 plt.ylabel("COP Y (cm)")
 #axes = plt.gca()
 #axes.set_ylim([-15,15])
-plt.show()
+#plt.show()
 
+similarity = scipy.stats.pearsonr(resampled_data, resampled_filtered)
+print(similarity)
 
 
