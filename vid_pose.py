@@ -415,7 +415,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
             L_foot = [(frame_data['LBigToe'][0] + frame_data['LHeel'][0])/2, 
                 (frame_data['LBigToe'][1] + frame_data['LHeel'][1])/2]
 
-            #Used for pixel-m conversion
+            # Used for pixel-m conversion
             nose = [frame_data['Nose'][0], frame_data['Nose'][1]]
             
             foot_y = max(R_foot[1], L_foot[1])
@@ -759,7 +759,19 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
 
         #plt.show()
 
+        # Store computed data back into json file
+        CoP_cm = [x / patient.pixel_cm for x in CoP]
+        CoG_cm = [x / patient.pixel_cm for x in CoG]
+        data['processed'] = {'fps' : fps,
+                            'CoP_cm' : CoP_cm,
+                            'CoG_cm' : CoG_cm,
+                            'CoP_frame' : CoP,
+                            'CoG_frame' : CoG}
+        with open(file_name, 'w') as outfile:
+            json.dump(data, outfile, indent=4)
+
         #Show each frame and save to output folder
+        print("Generating output video")
         while(cap.isOpened()):
             ret, frame = cap.read()
             if ret == True:
@@ -807,7 +819,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                     break
             else:
                 break
-        
+        print("Finished)
         cap.release()
         out.release()
         cv2.destroyAllWindows
