@@ -819,7 +819,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                     break
             else:
                 break
-        print("Finished)
+        print("Finished")
         cap.release()
         out.release()
         cv2.destroyAllWindows
