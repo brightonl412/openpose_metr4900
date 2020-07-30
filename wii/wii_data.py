@@ -28,7 +28,7 @@ def fill_data(value, time):
             new_value.append(value[i] + (value_ms * j))
     return (new_value, new_time)
 
-def gen_openpose_time(len, fps):
+def gen_openpose_time(length, fps):
     """Time for openpose data
     
     Generates time in milliseconds for each openpose datapoint
@@ -39,8 +39,26 @@ def gen_openpose_time(len, fps):
     Returns:
         list: time in milliseconds
     """
-    time = [math.floor(x * 1000 / fps) for x in range(len)]
+    time = [math.floor(x * 1000 / fps) for x in range(length)]
     return time
+
+def cut_data(data, start, length):
+    """Cut data length
+    
+    Cut the length of the data to match with openpose data. Will reset time to 0 at cutpoint.
+
+    Args:
+        data: wii data in dictionary format: {time(ms): value}
+        start: point to start cutting from
+        length: number of data points to keep
+    Returns:
+        dict: cut data
+    """
+    try:
+        cut = dict((k - start, data[k]) for k in range(start, start + length))
+        return cut
+    except:
+        print("Error - not enough data to cut at point")
 
 time = []  #in milliseconds
 COP_x = [] #in cm
@@ -64,11 +82,6 @@ with open('wii/front_landscape_test.csv') as csv_file:
         line_count += 1
 
 
-filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
-
-resampled_data, resampled_time = fill_data(COP_x, time)
-resampled_filtered , _ = fill_data(filtered, time)
-
 # Process openpose data
 with open("wii/front.json") as f:
     data = json.load(f)
@@ -76,24 +89,39 @@ with open("wii/front.json") as f:
 OP_COP = [-x for x in data['processed']['CoP_cm']]
 OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
 
+resampled_OP_COP, resampled_OP_time = fill_data(OP_COP, OP_time)
+
+# Process wii data to match openpose 
+filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
+
+resampled_data, resampled_time = fill_data(COP_x, time)
+resampled_filtered , _ = fill_data(filtered, time)
+
+wii_data = dict(zip(resampled_time, resampled_filtered)) # store time, value in dict
+cut_wii_data = cut_data(wii_data, 3000, len(resampled_OP_time)) # cut to match openpose size
 
 #Plot data
 plt.subplot(2,1,1)
-plt.plot(time, COP_x)
-plt.title("COP_x raw")
+plt.plot(cut_wii_data.keys(), cut_wii_data.values())
+plt.plot(resampled_OP_time, resampled_OP_COP)
+plt.legend(["Wii", "Openpose"])
+plt.title("COP_x")
 plt.xlabel("Time (ms)")
 plt.ylabel("COP X (cm)")
 
 plt.subplot(2,1,2)
-plt.title("CoP_x interpolated")
-plt.plot(OP_time, OP_COP)
-plt.xlabel("Time (ms)")
-plt.ylabel("COP X (cm)")
+plt.title("CoP_x Wii vs Openpose")
+plt.scatter(cut_wii_data.values(), resampled_OP_COP, label="stars", color="green",marker="*", s=1)
+plt.xlabel("Wii data")
+plt.ylabel("Openpose data")
 #axes = plt.gca()
 #axes.set_ylim([-15,15])
+
+wii_COP = list(cut_wii_data.values())
+similarity = scipy.stats.pearsonr(wii_COP, resampled_OP_COP)
+print(similarity)
+
 plt.show()
 
-similarity = scipy.stats.pearsonr(resampled_data, resampled_filtered)
-print(similarity)
 
 
