@@ -716,9 +716,10 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         #Need the updated angular acceleration so that frames match with CoG
         updated_ang_acc = add_empty_frames(ang_acc, ang_acc_start)
         force = calc_force(patient, fps)
+
+        #TODO: Filter pend_origin or just filter CoG and CoP
         CoG = CoG_x(filtered_comx, pend_origin)
         CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
-
 
         #Graphs
         # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 

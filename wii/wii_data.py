@@ -22,6 +22,8 @@ def fill_data(value, time):
     new_value = [] #list of values interpolated for each ms
     for i in range(len(time) - 1):
         time_diff = time[i+1] - time[i] #difference in time between each sample
+        if time_diff == 0:
+            print(time[i])
         value_diff = value[i+1] - value[i] #difference in value between each sample
         value_ms = value_diff / time_diff #interpolated difference between each ms
         for j in range(time_diff):
@@ -64,8 +66,11 @@ time = []  #in milliseconds
 COP_x = [] #in cm
 COP_y = [] #in cm
 
+# front.json = front_landscape_test.csv
+# front_l
+
 #Open CSV file to obtain data and place in lists
-with open('wii/front_landscape_test.csv') as csv_file:
+with open('wii/front_landscape_test2.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     start_time = None
@@ -83,13 +88,16 @@ with open('wii/front_landscape_test.csv') as csv_file:
 
 
 # Process openpose data
-with open("wii/front.json") as f:
+with open("wii/front_landscape_test2.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
+# For side_landscape test need to -5 from -x since ankle was not centered
 OP_COP = [-x for x in data['processed']['CoP_cm']]
 OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
 
-resampled_OP_COP, resampled_OP_time = fill_data(OP_COP, OP_time)
+#TODO: Remove later- only here now because didnt filter in vid_pose for these ones
+filtered_OP_COP = scipy.signal.savgol_filter(OP_COP, 51, 3)
+resampled_OP_COP, resampled_OP_time = fill_data(filtered_OP_COP, OP_time)
 
 # Process wii data to match openpose 
 filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
@@ -97,8 +105,11 @@ filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
 resampled_data, resampled_time = fill_data(COP_x, time)
 resampled_filtered , _ = fill_data(filtered, time)
 
+#Cross correlation to find shift of data
+corr = np.correlate(resampled_OP_COP, resampled_data, "full")
+shift = (len(resampled_filtered) - np.argmax(corr))
 wii_data = dict(zip(resampled_time, resampled_filtered)) # store time, value in dict
-cut_wii_data = cut_data(wii_data, 3000, len(resampled_OP_time)) # cut to match openpose size
+cut_wii_data = cut_data(wii_data, shift, len(resampled_OP_time)) # cut to match openpose size
 
 #Plot data
 plt.subplot(2,1,1)
@@ -114,6 +125,7 @@ plt.title("CoP_x Wii vs Openpose")
 plt.scatter(cut_wii_data.values(), resampled_OP_COP, label="stars", color="green",marker="*", s=1)
 plt.xlabel("Wii data")
 plt.ylabel("Openpose data")
+
 #axes = plt.gca()
 #axes.set_ylim([-15,15])
 
@@ -121,7 +133,12 @@ wii_COP = list(cut_wii_data.values())
 similarity = scipy.stats.pearsonr(wii_COP, resampled_OP_COP)
 print(similarity)
 
+# cross correlation 
+# corr = np.correlate(wii_COP, resampled_OP_COP, "full")
+# plt.subplot(2,1,2)
+# lag = np.argmax(corr)-corr.size/2
+# print(lag)
+# plt.plot(corr)
 plt.show()
-
 
 
