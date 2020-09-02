@@ -2,3 +2,5 @@
 /media
 /.vscode
 /__pycache__
+*.csv
+*.json
