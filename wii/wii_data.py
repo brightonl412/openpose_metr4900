@@ -5,6 +5,7 @@ import scipy.signal
 import scipy.stats
 import json
 import math
+from sklearn.metrics import mean_squared_error
 
 def fill_data(value, time):
     """Fills/interpolates data
@@ -23,6 +24,7 @@ def fill_data(value, time):
     for i in range(len(time) - 1):
         time_diff = time[i+1] - time[i] #difference in time between each sample
         if time_diff == 0:
+            print(i)
             print(time[i])
         value_diff = value[i+1] - value[i] #difference in value between each sample
         value_ms = value_diff / time_diff #interpolated difference between each ms
@@ -70,7 +72,7 @@ COP_y = [] #in cm
 # front_l
 
 #Open CSV file to obtain data and place in lists
-with open('wii/front_landscape_test2.csv') as csv_file:
+with open('wii/brighton_wii_ML_2.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     start_time = None
@@ -88,13 +90,12 @@ with open('wii/front_landscape_test2.csv') as csv_file:
 
 
 # Process openpose data
-with open("wii/front_landscape_test2.json") as f:
+with open("wii/brighton_ML_2.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
 # For side_landscape test need to -5 from -x since ankle was not centered
 OP_COP = [-x for x in data['processed']['CoP_cm']]
 OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
-
 #TODO: Remove later- only here now because didnt filter in vid_pose for these ones
 filtered_OP_COP = scipy.signal.savgol_filter(OP_COP, 51, 3)
 resampled_OP_COP, resampled_OP_time = fill_data(filtered_OP_COP, OP_time)
@@ -132,6 +133,10 @@ plt.ylabel("Openpose data")
 wii_COP = list(cut_wii_data.values())
 similarity = scipy.stats.pearsonr(wii_COP, resampled_OP_COP)
 print(similarity)
+
+RMSE = math.sqrt(sum([(a_i - b_i)**2 for a_i, b_i in zip(wii_COP, resampled_OP_COP)]
+) / len(wii_COP))
+print(RMSE)
 
 # cross correlation 
 # corr = np.correlate(wii_COP, resampled_OP_COP, "full")
