@@ -72,7 +72,7 @@ COP_y = [] #in cm
 # front_l
 
 #Open CSV file to obtain data and place in lists
-with open('wii/brighton_wii_ML_2.csv') as csv_file:
+with open('wii/brighton_wii_ML_1.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     start_time = None
@@ -90,7 +90,7 @@ with open('wii/brighton_wii_ML_2.csv') as csv_file:
 
 
 # Process openpose data
-with open("wii/brighton_ML_2.json") as f:
+with open("wii/brighton_ML_1.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
 # For side_landscape test need to -5 from -x since ankle was not centered
@@ -134,9 +134,13 @@ wii_COP = list(cut_wii_data.values())
 similarity = scipy.stats.pearsonr(wii_COP, resampled_OP_COP)
 print(similarity)
 
-RMSE = math.sqrt(sum([(a_i - b_i)**2 for a_i, b_i in zip(wii_COP, resampled_OP_COP)]
+RMSE = math.sqrt(sum([(a - b)**2 for a, b in zip(wii_COP, resampled_OP_COP)]
 ) / len(wii_COP))
 print(RMSE)
+
+#Normalized RMSE
+abs_val = list(map(abs, resampled_OP_COP)) 
+print(RMSE/sum(abs_val))
 
 # cross correlation 
 # corr = np.correlate(wii_COP, resampled_OP_COP, "full")

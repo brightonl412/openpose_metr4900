@@ -82,7 +82,7 @@ body_perc = {
 
 time = []
 
-with open('mocap/brighton_mocap_ML_1.csv') as csv_file:
+with open('mocap/brighton_mocap_ML_3.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     start_time = None
@@ -153,7 +153,7 @@ for ele1, ele2 in zip(COM_x_3d, origin_x):
 
 
 # Process openpose data
-with open("mocap/brighton_ML_1.json") as f:
+with open("mocap/brighton_ML_3.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
 # For side_landscape test need to -5 from -x since ankle was not centered
@@ -185,7 +185,7 @@ plt.xlabel("Time (ms)")
 plt.ylabel("COM X (cm)")
 
 plt.subplot(2,1,2)
-plt.title("CoP_x Mocap vs Openpose")
+plt.title("CoM_x Mocap vs Openpose")
 plt.scatter(cut_mocap_data.values(), resampled_OP_COM, label="stars", color="green",marker="*", s=1)
 plt.xlabel("Mocap data")
 plt.ylabel("Openpose data")
@@ -196,6 +196,15 @@ plt.ylabel("Openpose data")
 mocap_COM = list(cut_mocap_data.values())
 similarity = scipy.stats.pearsonr(mocap_COM, resampled_OP_COM)
 print(similarity)
+
+RMSE = math.sqrt(sum([(a - b)**2 for a, b in zip(mocap_COM, resampled_OP_COM)]
+) / len(mocap_COM))
+print(RMSE)
+
+#Normalized RMSE
+abs_val = list(map(abs, resampled_OP_COM)) 
+print(RMSE/sum(abs_val))
+
 plt.show()
 
 #same as pearson
