@@ -305,6 +305,12 @@ def angle(v,w):
     return rad
     #return rad*180/math.pi # returns degrees
 
+#Alternative angle
+def angle2(point_1, point_2):
+    change_x = point_2[0] - point_1[0]
+    change_y = point_2[1] - point_1[1]
+    return math.atan2(-change_y, change_x) #negative due to y axis inverted
+
 #Add none to make all lists start at frame 1
 def add_empty_frames(frames, start):
     """Add empty frames to list
@@ -692,9 +698,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
             horizontal_axis = [10, 0] #abitary point on the horizontal axis
             CoM_to_pend_origin = [COM_x - pend[0], pend[1]- COM_y]
             ang = angle(CoM_to_pend_origin, horizontal_axis)
-            #change_x = point_2[0] - point_1[0]
-	        #change_y = point_2[1] - point_1[1]
-	        #return math.atan2(change_y, change_x)
+            #ang2 = angle2(pend, [COM_x, COM_y])
             com_ang.append(ang) 
             pend_origin.append(pend)
             frame_num += 1
@@ -816,7 +820,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                     point_1 = (int(pend_origin_x + CoP_frame), int(pend_origin_y))
                     cv2.arrowedLine(output_frame, point_1, point_2, (0,0,255), 3)
 
-                cv2.imshow("Output video", output_frame)
+                cv2.imshow("Output vgideo", output_frame)
                 out.write(output_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
