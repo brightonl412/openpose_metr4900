@@ -692,6 +692,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
             horizontal_axis = [10, 0] #abitary point on the horizontal axis
             CoM_to_pend_origin = [COM_x - pend[0], pend[1]- COM_y]
             ang = angle(CoM_to_pend_origin, horizontal_axis)
+            #change_x = point_2[0] - point_1[0]
+	        #change_y = point_2[1] - point_1[1]
+	        #return math.atan2(change_y, change_x)
             com_ang.append(ang) 
             pend_origin.append(pend)
             frame_num += 1
