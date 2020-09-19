@@ -282,6 +282,12 @@ class Ui_MainWindow(object):
             self.progressView = progressView()
             self.progressView.show()
             file_name = openpose_output.get_keypoints(inputvid, model, self.progressView)
+            print(inputvid)
+            print(model)
+            print(orientation)
+            print(gender)
+            print(outputvid)
+            print(file_name)
             vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid, file_name)
     
 if __name__ == "__main__":

@@ -711,10 +711,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         #Apply Savistky-Golay Filter
         filtered_comx = scipy.signal.savgol_filter(com_x_pos, 51, 3)
         filtered_com_ang = scipy.signal.savgol_filter(com_ang, 51, 3)
-
         #Calculate frame velocities and accelerations
-        start, stop, velocity = calc_vel(filtered_comx, 5)
-        start2, stop2, acceleration = calc_acc(velocity, 5, start)
+        # start, stop, velocity = calc_vel(filtered_comx, 5)
+        # start2, stop2, acceleration = calc_acc(velocity, 5, start)
 
         #CoG, Force, Angular Acceleration
         ang_vel_start, _, ang_vel = calc_vel(filtered_com_ang, 5) #Angular vel
@@ -725,31 +724,36 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         force = calc_force(patient, fps)
 
         #TODO: Filter pend_origin or just filter CoG and CoP
-        CoG = CoG_x(filtered_comx, pend_origin)
-        CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
+        #CoG = CoG_x(com_x_pos, pend_origin)
+        #CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
+        CoG = scipy.signal.savgol_filter(CoG_x(filtered_comx, pend_origin), 51, 3)
+        CoP = filtered_comx = scipy.signal.savgol_filter(CoP_x(CoG, updated_ang_acc, inertias, force), 51, 3)
 
+        start, stop, velocity = calc_avg_vel(CoG, 5, 5)
+        start2, stop2, acceleration = calc_acc(velocity, 5, start)
         #Graphs
-        # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
-        # plt.subplot(3,1,1)
-        # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
-        # plt.plot(x, filtered_comx, color = 'red')
-        # plt.title("CoM x pos per Frame")
-        # plt.xlabel("Frame")
-        # plt.ylabel("CoM x pos (Pixels)")
+        x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
+        plt.subplot(3,1,1)
+        a=plt.scatter(x,CoG_x(com_x_pos, pend_origin),label="unfiltered", color="green",marker="*", s=30)
+        b=plt.plot(x, CoG, label="filtered", color = 'red')
+        plt.legend()
+        plt.title("CoM x pos per Frame")
+        plt.xlabel("Frame")
+        plt.ylabel("CoM x pos (Pixels)")
 
-        # plt.subplot(3,1,2)
-        # x2 = np.linspace(start,stop, len(velocity)) 
-        # plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
-        # plt.title("Velocity per Frame")
-        # plt.xlabel("Frame")
-        # plt.ylabel("Velocity (Pixels/frame)")
+        plt.subplot(3,1,2)
+        x2 = np.linspace(start,stop, len(velocity)) 
+        plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
+        plt.title("Velocity per Frame")
+        plt.xlabel("Frame")
+        plt.ylabel("Velocity (Pixels/frame)")
 
-        # plt.subplot(3,1,3)
-        # x3 = np.linspace(start2,stop2, len(acceleration)) 
-        # plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
-        # plt.title("Accerelation per Frame")
-        # plt.xlabel("Frame")
-        # plt.ylabel("Acceleration (Pixels^2/frame")
+        plt.subplot(3,1,3)
+        x3 = np.linspace(start2,stop2, len(acceleration)) 
+        plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
+        plt.title("Accerelation per Frame")
+        plt.xlabel("Frame")
+        plt.ylabel("Acceleration (Pixels^2/frame")
 
         # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
         # plt.subplot(2,1,1)
@@ -765,9 +769,9 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         # plt.ylabel("CoM ang pos (radians)")
         # plt.plot(x, filtered_com_ang, color = 'red')
 
-        #plt.show()
+        plt.show()
 
-        # Store computed data back into json file
+        Store computed data back into json file
         CoP_cm = [x / patient.pixel_cm for x in CoP]
         CoG_cm = [x / patient.pixel_cm for x in CoG]
         data['processed'] = {'fps' : fps,
@@ -819,8 +823,15 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                     point_2 = (int(pend_origin_x + CoP_frame), int(pend_origin_y - 20)) 
                     point_1 = (int(pend_origin_x + CoP_frame), int(pend_origin_y))
                     cv2.arrowedLine(output_frame, point_1, point_2, (0,0,255), 3)
+                    cv2.line(
+                        output_frame, 
+                        (int(pend_origin[frame_num - 1][0]), int(pend_origin[frame_num - 1][1])), 
+                        (int(pend_origin[frame_num - 1][0]), int(pend_origin[frame_num - 1][1]) - 20), 
+                        (255,0,0), 
+                        3
+                    )
 
-                cv2.imshow("Output vgideo", output_frame)
+                cv2.imshow("Output video", output_frame)
                 out.write(output_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
