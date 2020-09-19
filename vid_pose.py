@@ -66,7 +66,37 @@ def calc_vel_frame(position, step_size, frame):
             return vel
         except IndexError:
             print("Frame or step_size out of bounds")
-    
+
+def moving_average(position, step_size, avg_quantity):
+    """Calculate velocity using the average of a subset of frames
+
+    Velocity calculation dependent upon position values using formula: 
+    average change in displacement/change in time
+
+    Args:
+        postion: list- positions per frame
+        avg_quantity- the number of frames to average
+        step_size: int- change in time/frames
+
+    Returns: 
+        int- starting frame number
+        int- ending frame number
+        list- velocities of each frame starting from the start frame
+    """
+    print("1")
+    avg_disp = int(math.floor(avg_quantity / 2))
+    start_frame = step_size + avg_disp + 1
+    end_frame = len(position) - avg_disp
+    moving_avg = []
+    for i in range(start_frame, end_frame + 1):
+        position_avg = 0
+        for j in range(i - 1 - avg_disp, i + avg_disp):
+            position_avg += position[j]
+        position_1 = position_avg / (avg_disp * 2 + 1)
+           
+        moving_avg.append(position_1)
+    print("2")
+    return start_frame, end_frame, moving_avg
 
 def calc_avg_vel(position, step_size, avg_quantity):
     """Calculate velocity using the average of a subset of frames
@@ -729,13 +759,16 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         CoG = scipy.signal.savgol_filter(CoG_x(filtered_comx, pend_origin), 51, 3)
         CoP = filtered_comx = scipy.signal.savgol_filter(CoP_x(CoG, updated_ang_acc, inertias, force), 51, 3)
 
-        start, stop, velocity = calc_avg_vel(CoG, 5, 5)
+        #a,b,ma = moving_average(CoG, 5, 5)
+        start, stop, velocity = calc_vel(CoG, 5)
         start2, stop2, acceleration = calc_acc(velocity, 5, start)
         #Graphs
-        x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
+        x = np.linspace(1, len(com_x_pos), len(com_x_pos)) 
+        #x_ma = np.linspace(a,b, len(ma)) 
         plt.subplot(3,1,1)
-        a=plt.scatter(x,CoG_x(com_x_pos, pend_origin),label="unfiltered", color="green",marker="*", s=30)
-        b=plt.plot(x, CoG, label="filtered", color = 'red')
+        a=plt.scatter(x,CoG_x(com_x_pos, pend_origin),label="unfiltered", color="green",marker="*",s=30)
+        b=plt.plot(x, CoG, label="Moving Average", color = 'red')
+        #b=plt.plot(x_ma, ma, label="Moving Average", color = 'red')
         plt.legend()
         plt.title("CoM x pos per Frame")
         plt.xlabel("Frame")
@@ -771,7 +804,7 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
 
         plt.show()
 
-        Store computed data back into json file
+        #Store computed data back into json file
         CoP_cm = [x / patient.pixel_cm for x in CoP]
         CoG_cm = [x / patient.pixel_cm for x in CoG]
         data['processed'] = {'fps' : fps,
