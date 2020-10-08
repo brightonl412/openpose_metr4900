@@ -104,7 +104,6 @@ with open('mocap/brighton_mocap_ML_3.csv') as csv_file:
 
         line_count += 1
 
-
 #Make lists for body parts coordinates
 head_x = [float(x[2]) for x in body_parts["Head"]]
 lower_trunk_x = [float(x[2]) for x in body_parts["Lower_Trunk"]]
@@ -153,7 +152,7 @@ for ele1, ele2 in zip(COM_x_3d, origin_x):
 
 
 # Process openpose data
-with open("mocap/brighton_ML_3.json") as f:
+with open("mocap/test.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
 # For side_landscape test need to -5 from -x since ankle was not centered

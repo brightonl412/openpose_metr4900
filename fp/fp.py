@@ -52,7 +52,7 @@ def cut_data(data, start, length):
     Cut the length of the data to match with openpose data. Will reset time to 0 at cutpoint.
 
     Args:
-        data: wii data in dictionary format: {time(ms): value}
+        data: fp data in dictionary format: {time(ms): value}
         start: point to start cutting from
         length: number of data points to keep
     Returns:
@@ -68,74 +68,94 @@ time = []  #in milliseconds
 COP_x = [] #in cm
 COP_y = [] #in cm
 
+x_center = -0.2492585
+y_center = 0.572417
+
+
+body_parts = {}
+with open('fp/mocap/S01_MOCAP_001.csv') as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter=',')
+    line_count = 0
+    part_col = {}
+    for row in csv_reader:
+
+        #Obtain part labels and their colum index
+        if line_count == 3:
+            for i in range(2, len(row), 3):
+                part_col[row[i]] = i
+                body_parts[row[i]] = []
+        if line_count == 7:
+            for part in body_parts.keys():
+                index = part_col.get(part)
+                body_parts[part].append(row[index:index+3])
+            break
+        line_count += 1
+l_ankle = float(body_parts['L_Ankle'][0][2])
+r_ankle = float(body_parts['R_Ankle'][0][2])
+pend_origin = (l_ankle + r_ankle)/2
+offset = pend_origin - x_center
+
 # front.json = front_landscape_test.csv
 # front_l
 
 #Open CSV file to obtain data and place in lists
-with open('wii/brighton_wii_ML_2.csv') as csv_file:
+with open('fp/fp_data/S01ML001.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
-    start_time = None
     for row in csv_reader:
-        data = row[0].split()
-
-        #Obtain initial start time
-        if line_count == 0:
-            start_time = int(data[0])
-        
-        time.append(int(data[0]) - start_time)
-        COP_x.append(float(data[5]))
-        COP_y.append(float(data[6]))
+        if line_count % 3 == 0:
+            time.append(int(float(row[0])*1000))
+            COP_x.append(float(row[1]))
+            COP_y.append(float(row[2]))
         line_count += 1
-
-
-# Process openpose data
-with open("wii/brighton_ML_2.json") as f:
-    data = json.load(f)
-# Flip sign of data due to video recoding mirror image
-# For side_landscape test need to -5 from -x since ankle was not centered
-OP_COP = [-x for x in data['processed']['CoP_cm']]
-OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
-#TODO: Remove later- only here now because didnt filter in vid_pose for these ones
-filtered_OP_COP = scipy.signal.savgol_filter(OP_COP, 51, 3)
-resampled_OP_COP, resampled_OP_time = fill_data(filtered_OP_COP, OP_time)
-
-# Process wii data to match openpose 
+# Process fp data to match openpose 
 filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
 
 resampled_data, resampled_time = fill_data(COP_x, time)
 resampled_filtered , _ = fill_data(filtered, time)
 
+# Process openpose data
+with open("fp/op_data/S01ML001.json") as f:
+    data = json.load(f)
+# Flip sign of data due to video recoding mirror image
+# For side_landscape test need to -5 from -x since ankle was not centered
+OP_COP = [(x + offset) for x in data['processed']['CoP_cm']]
+OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
+#TODO: Remove later- only here now because didnt filter in vid_pose for these ones
+filtered_OP_COP = scipy.signal.savgol_filter(OP_COP, 51, 3)
+resampled_OP_COP, resampled_OP_time = fill_data(filtered_OP_COP, OP_time)
+
 #Cross correlation to find shift of data
 corr = np.correlate(resampled_OP_COP, resampled_filtered, "full")
 shift = (len(resampled_filtered) - np.argmax(corr))
-wii_data = dict(zip(resampled_time, resampled_filtered)) # store time, value in dict
-cut_wii_data = cut_data(wii_data, shift, len(resampled_OP_time)) # cut to match openpose size
+fp_data = dict(zip(resampled_time, resampled_filtered)) # store time, value in dict
+cut_fp_data = cut_data(fp_data, shift, len(resampled_OP_time)) # cut to match openpose size
 
 #Plot data
 plt.subplot(2,1,1)
-plt.plot(cut_wii_data.keys(), cut_wii_data.values())
+plt.plot(cut_fp_data.keys(), cut_fp_data.values())
 plt.plot(resampled_OP_time, resampled_OP_COP)
-plt.legend(["Wii", "Openpose"])
-plt.title("COP_x")
+#plt.plot(resampled_time, resampled_data)
+plt.legend(["Force Plate", "Openpose"])
+plt.title("COP")
 plt.xlabel("Time (ms)")
-plt.ylabel("COP X (cm)")
+plt.ylabel("COP (cm)")
 
 plt.subplot(2,1,2)
-plt.title("CoP_x Wii vs Openpose")
-plt.scatter(cut_wii_data.values(), resampled_OP_COP, label="stars", color="green",marker="*", s=1)
-plt.xlabel("Wii data")
+plt.title("CoP FP vs Openpose")
+plt.scatter(cut_fp_data.values(), resampled_OP_COP, label="stars", color="green",marker="*", s=1)
+plt.xlabel("FP data")
 plt.ylabel("Openpose data")
 
 #axes = plt.gca()
 #axes.set_ylim([-15,15])
 
-wii_COP = list(cut_wii_data.values())
-similarity = scipy.stats.pearsonr(wii_COP, resampled_OP_COP)
+fp_COP = list(cut_fp_data.values())
+similarity = scipy.stats.pearsonr(fp_COP, resampled_OP_COP)
 print(similarity)
 
-RMSE = math.sqrt(sum([(a - b)**2 for a, b in zip(wii_COP, resampled_OP_COP)]
-) / len(wii_COP))
+RMSE = math.sqrt(sum([(a - b)**2 for a, b in zip(fp_COP, resampled_OP_COP)]
+) / len(fp_COP))
 print(RMSE)
 
 #Normalized RMSE
@@ -143,7 +163,7 @@ abs_val = list(map(abs, resampled_OP_COP))
 print(RMSE/sum(abs_val))
 
 # cross correlation 
-# corr = np.correlate(wii_COP, resampled_OP_COP, "full")
+# corr = np.correlate(fp_COP, resampled_OP_COP, "full")
 # plt.subplot(2,1,2)
 # lag = np.argmax(corr)-corr.size/2
 # print(lag)

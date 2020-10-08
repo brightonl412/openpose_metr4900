@@ -68,86 +68,108 @@ time = []  #in milliseconds
 COP_x = [] #in cm
 COP_y = [] #in cm
 
-# front.json = front_landscape_test.csv
-# front_l
+x_center = -0.2492585
+y_center = 0.572417
 
-#Open CSV file to obtain data and place in lists
-with open('wii/brighton_wii_ML_2.csv') as csv_file:
+#Male body %
+body_perc = {
+    "head": 0.0694,
+    "upper_trunk": 0.1596,
+    "mid_trunk": 0.1633,
+    "lower_trunk": 0.1117,
+    "arm": 0.0271,
+    "forearm": 0.0162,
+    "hand": 0.0061,
+    "thigh": 0.1416,
+    "shank": 0.0433,
+    "foot": 0.0137
+}
+
+time = []
+
+body_parts = {}
+with open('fp/mocap/S01_MOCAP_001.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
-    start_time = None
+    part_col = {}
     for row in csv_reader:
-        data = row[0].split()
-
-        #Obtain initial start time
-        if line_count == 0:
-            start_time = int(data[0])
-        
-        time.append(int(data[0]) - start_time)
-        COP_x.append(float(data[5]))
-        COP_y.append(float(data[6]))
+        #Obtain part labels and their colum index
+        if line_count == 3:
+            for i in range(2, len(row), 3):
+                part_col[row[i]] = i
+                body_parts[row[i]] = []
+        if line_count > 6:
+            time.append(int(float(row[1])*1000))
+            for part in body_parts.keys():
+                index = part_col.get(part)
+                body_parts[part].append(row[index:index+3])
         line_count += 1
 
+l_ankle = [float(x[2]) for x in body_parts["L_Ankle"]]
+r_ankle = [float(x[2]) for x in body_parts["R_Ankle"]]
+sacral = [float(x[2]) for x in body_parts["Sacral"]]
+
+# Obtain origin as center between two feet
+origin_x = [(g + h) / 2 for g, h in zip(l_ankle, r_ankle)]
+
+COM_x = []
+for ele1, ele2 in zip(sacral, origin_x):
+    COM_x.append((ele1 - ele2) * 100) #*100 to convert to cm
 
 # Process openpose data
-with open("wii/brighton_ML_2.json") as f:
+with open("fp/op_data/S01ML001.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
 # For side_landscape test need to -5 from -x since ankle was not centered
-OP_COP = [-x for x in data['processed']['CoP_cm']]
-OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
+OP_COM = [-x for x in data['processed']['CoG_cm']]
+OP_time = gen_openpose_time(len(OP_COM), data['processed']['fps'])
 #TODO: Remove later- only here now because didnt filter in vid_pose for these ones
-filtered_OP_COP = scipy.signal.savgol_filter(OP_COP, 51, 3)
-resampled_OP_COP, resampled_OP_time = fill_data(filtered_OP_COP, OP_time)
+filtered_OP_COM = scipy.signal.savgol_filter(OP_COM, 51, 3)
+resampled_OP_COM, resampled_OP_time = fill_data(filtered_OP_COM, OP_time)
 
-# Process wii data to match openpose 
-filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
-
-resampled_data, resampled_time = fill_data(COP_x, time)
-resampled_filtered , _ = fill_data(filtered, time)
+resampled_data, resampled_time = fill_data(COM_x, time)
 
 #Cross correlation to find shift of data
-corr = np.correlate(resampled_OP_COP, resampled_filtered, "full")
-shift = (len(resampled_filtered) - np.argmax(corr))
-wii_data = dict(zip(resampled_time, resampled_filtered)) # store time, value in dict
-cut_wii_data = cut_data(wii_data, shift, len(resampled_OP_time)) # cut to match openpose size
+corr = np.correlate(resampled_OP_COM, resampled_data, "full")
+shift = (len(resampled_data) - np.argmax(corr))
+print(shift)
+mocap_data = dict(zip(resampled_time, resampled_data)) # store time, value in dict
+cut_mocap_data = cut_data(mocap_data, shift, len(resampled_OP_time)) # cut to match openpose size
+
+#print(origin_x)
+#print(COM_x)
 
 #Plot data
 plt.subplot(2,1,1)
-plt.plot(cut_wii_data.keys(), cut_wii_data.values())
-plt.plot(resampled_OP_time, resampled_OP_COP)
-plt.legend(["Wii", "Openpose"])
-plt.title("COP_x")
+plt.plot(cut_mocap_data.keys(), cut_mocap_data.values())
+plt.plot(resampled_OP_time, resampled_OP_COM)
+plt.legend(["Mocap", "Openpose"])
+plt.title("COM_x")
 plt.xlabel("Time (ms)")
-plt.ylabel("COP X (cm)")
+plt.ylabel("COM X (cm)")
 
 plt.subplot(2,1,2)
-plt.title("CoP_x Wii vs Openpose")
-plt.scatter(cut_wii_data.values(), resampled_OP_COP, label="stars", color="green",marker="*", s=1)
-plt.xlabel("Wii data")
+plt.title("CoM_x Mocap vs Openpose")
+plt.scatter(cut_mocap_data.values(), resampled_OP_COM, label="stars", color="green",marker="*", s=1)
+plt.xlabel("Mocap data")
 plt.ylabel("Openpose data")
 
 #axes = plt.gca()
 #axes.set_ylim([-15,15])
 
-wii_COP = list(cut_wii_data.values())
-similarity = scipy.stats.pearsonr(wii_COP, resampled_OP_COP)
+mocap_COM = list(cut_mocap_data.values())
+similarity = scipy.stats.pearsonr(mocap_COM, resampled_OP_COM)
 print(similarity)
 
-RMSE = math.sqrt(sum([(a - b)**2 for a, b in zip(wii_COP, resampled_OP_COP)]
-) / len(wii_COP))
+RMSE = math.sqrt(sum([(a - b)**2 for a, b in zip(mocap_COM, resampled_OP_COM)]
+) / len(mocap_COM))
 print(RMSE)
 
 #Normalized RMSE
-abs_val = list(map(abs, resampled_OP_COP)) 
+abs_val = list(map(abs, resampled_OP_COM)) 
 print(RMSE/sum(abs_val))
 
-# cross correlation 
-# corr = np.correlate(wii_COP, resampled_OP_COP, "full")
-# plt.subplot(2,1,2)
-# lag = np.argmax(corr)-corr.size/2
-# print(lag)
-# plt.plot(corr)
 plt.show()
 
-
+#same as pearson
+print(np.corrcoef(mocap_COM , resampled_OP_COM))
