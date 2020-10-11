@@ -402,8 +402,12 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
             out = cv2.VideoWriter(location, fourcc, fps, (int(width),
                 int(height)))
         else:
-            print("Video format not supported")
-            sys.exit(-1)
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            location = outputvid + '/output.mp4'
+            out = cv2.VideoWriter(location, fourcc, fps, (int(width),
+                int(height)))
+            # print("Video format not supported")
+            # sys.exit(-1)
 
         frame_num = 0
 
@@ -693,7 +697,6 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                 COM_y += (R_foot[1] + L_foot[1]) * body_perc["foot"]
             else:
                 print("Not a valid orientation")
-
             com_x_pos.append(int(COM_x))
             com_y_pos.append(int(COM_y))        
             
@@ -737,7 +740,6 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         cap = cv2.VideoCapture(vid_location)
         frame_num = 0
         max_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
         #Apply Savistky-Golay Filter
         filtered_comx = scipy.signal.savgol_filter(com_x_pos, 51, 3)
         filtered_com_ang = scipy.signal.savgol_filter(com_ang, 51, 3)
@@ -757,52 +759,53 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         #CoG = CoG_x(com_x_pos, pend_origin)
         #CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
         CoG = scipy.signal.savgol_filter(CoG_x(filtered_comx, pend_origin), 51, 3)
-        CoP = filtered_comx = scipy.signal.savgol_filter(CoP_x(CoG, updated_ang_acc, inertias, force), 51, 3)
-
-        #a,b,ma = moving_average(CoG, 5, 5)
+        CoP = scipy.signal.savgol_filter(CoP_x(CoG, updated_ang_acc, inertias, force), 51, 3)
+        CoG = list(CoG)
+        CoP = list(CoP)
+        # #a,b,ma = moving_average(CoG, 5, 5)
         start, stop, velocity = calc_vel(CoG, 5)
         start2, stop2, acceleration = calc_acc(velocity, 5, start)
-        #Graphs
-        x = np.linspace(1, len(com_x_pos), len(com_x_pos)) 
-        #x_ma = np.linspace(a,b, len(ma)) 
-        plt.subplot(3,1,1)
-        a=plt.scatter(x,CoG_x(com_x_pos, pend_origin),label="unfiltered", color="green",marker="*",s=30)
-        b=plt.plot(x, CoG, label="Moving Average", color = 'red')
-        #b=plt.plot(x_ma, ma, label="Moving Average", color = 'red')
-        plt.legend()
-        plt.title("CoM x pos per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("CoM x pos (Pixels)")
-
-        plt.subplot(3,1,2)
-        x2 = np.linspace(start,stop, len(velocity)) 
-        plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
-        plt.title("Velocity per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("Velocity (Pixels/frame)")
-
-        plt.subplot(3,1,3)
-        x3 = np.linspace(start2,stop2, len(acceleration)) 
-        plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
-        plt.title("Accerelation per Frame")
-        plt.xlabel("Frame")
-        plt.ylabel("Acceleration (Pixels^2/frame")
-
-        # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
-        # plt.subplot(2,1,1)
-        # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
-        # plt.title("CoM x pos per frame")
+        # #Graphs
+        # x = np.linspace(1, len(com_x_pos), len(com_x_pos)) 
+        # #x_ma = np.linspace(a,b, len(ma)) 
+        # plt.subplot(3,1,1)
+        # a=plt.scatter(x,CoG_x(com_x_pos, pend_origin),label="unfiltered", color="green",marker="*",s=30)
+        # b=plt.plot(x, CoG, label="Moving Average", color = 'red')
+        # #b=plt.plot(x_ma, ma, label="Moving Average", color = 'red')
+        # plt.legend()
+        # plt.title("CoM x pos per Frame")
         # plt.xlabel("Frame")
         # plt.ylabel("CoM x pos (Pixels)")
-        # plt.plot(x, filtered_comx, color = 'red')
-        # plt.subplot(2,1,2)
-        # plt.scatter(x,com_ang,label="stars", color="green",marker="*", s=30)
-        # plt.title("CoM angle pos per frame")
-        # plt.xlabel("Frame")
-        # plt.ylabel("CoM ang pos (radians)")
-        # plt.plot(x, filtered_com_ang, color = 'red')
 
-        plt.show()
+        # plt.subplot(3,1,2)
+        # x2 = np.linspace(start,stop, len(velocity)) 
+        # plt.scatter(x2,velocity,label="stars", color="green",marker="*", s=30)
+        # plt.title("Velocity per Frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("Velocity (Pixels/frame)")
+
+        # plt.subplot(3,1,3)
+        # x3 = np.linspace(start2,stop2, len(acceleration)) 
+        # plt.scatter(x3,acceleration,label="stars", color="green",marker="*", s=30)
+        # plt.title("Accerelation per Frame")
+        # plt.xlabel("Frame")
+        # plt.ylabel("Acceleration (Pixels^2/frame")
+
+        # # x = np.linspace(1,len(com_x_pos), len(com_x_pos)) 
+        # # plt.subplot(2,1,1)
+        # # plt.scatter(x,com_x_pos,label="stars", color="green",marker="*", s=30)
+        # # plt.title("CoM x pos per frame")
+        # # plt.xlabel("Frame")
+        # # plt.ylabel("CoM x pos (Pixels)")
+        # # plt.plot(x, filtered_comx, color = 'red')
+        # # plt.subplot(2,1,2)
+        # # plt.scatter(x,com_ang,label="stars", color="green",marker="*", s=30)
+        # # plt.title("CoM angle pos per frame")
+        # # plt.xlabel("Frame")
+        # # plt.ylabel("CoM ang pos (radians)")
+        # # plt.plot(x, filtered_com_ang, color = 'red')
+
+        # plt.show()
 
         #Store computed data back into json file
         CoP_cm = [x / patient.pixel_cm for x in CoP]

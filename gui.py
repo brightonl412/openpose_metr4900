@@ -210,7 +210,7 @@ class Ui_MainWindow(object):
         Opens current directory and allows selection of avi and mp4 video files.
         """
         fileName = str(QtWidgets.QFileDialog.getOpenFileName(None, 
-            "Select Video", os.getcwd(), "Video files (*.avi *.mp4)" ))
+            "Select Video", os.getcwd(), "Video files (*.avi *.mp4 *MOV)" ))
         if fileName:
             dir = fileName.split(",")
             start = dir[0].find("'") + len("'")
@@ -278,7 +278,7 @@ class Ui_MainWindow(object):
             msg.exec_()
         else:
             height = int(self.heightInput.text())
-            weight = int(self.weightInput.text())
+            weight = int(float(self.weightInput.text()))
             self.progressView = progressView()
             self.progressView.show()
             file_name = openpose_output.get_keypoints(inputvid, model, self.progressView)
