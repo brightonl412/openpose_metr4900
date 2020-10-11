@@ -73,12 +73,11 @@ y_center = 0.572417
 
 
 body_parts = {}
-with open('fp/mocap/S01_MOCAP_001.csv') as csv_file:
+with open('fp/mocap/S03_MOCAP_005.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     part_col = {}
     for row in csv_reader:
-
         #Obtain part labels and their colum index
         if line_count == 3:
             for i in range(2, len(row), 3):
@@ -93,13 +92,15 @@ with open('fp/mocap/S01_MOCAP_001.csv') as csv_file:
 l_ankle = float(body_parts['L_Ankle'][0][2])
 r_ankle = float(body_parts['R_Ankle'][0][2])
 pend_origin = (l_ankle + r_ankle)/2
-offset = pend_origin - x_center
+print(pend_origin)
+offset = pend_origin - y_center
+print(offset)
 
 # front.json = front_landscape_test.csv
 # front_l
 
 #Open CSV file to obtain data and place in lists
-with open('fp/fp_data/S01ML001.csv') as csv_file:
+with open('fp/fp_data/S03AP005.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     for row in csv_reader:
@@ -108,6 +109,8 @@ with open('fp/fp_data/S01ML001.csv') as csv_file:
             COP_x.append(float(row[1]))
             COP_y.append(float(row[2]))
         line_count += 1
+COP_x = [(x + (100*offset)) for x in COP_x]
+
 # Process fp data to match openpose 
 filtered = scipy.signal.savgol_filter(COP_x, 51, 3)
 
@@ -115,11 +118,11 @@ resampled_data, resampled_time = fill_data(COP_x, time)
 resampled_filtered , _ = fill_data(filtered, time)
 
 # Process openpose data
-with open("fp/op_data/S01ML001.json") as f:
+with open("fp/op_data/S03AP005.json") as f:
     data = json.load(f)
 # Flip sign of data due to video recoding mirror image
 # For side_landscape test need to -5 from -x since ankle was not centered
-OP_COP = [(x + offset) for x in data['processed']['CoP_cm']]
+OP_COP = [x for x in data['processed']['CoP_cm']]
 OP_time = gen_openpose_time(len(OP_COP), data['processed']['fps'])
 #TODO: Remove later- only here now because didnt filter in vid_pose for these ones
 filtered_OP_COP = scipy.signal.savgol_filter(OP_COP, 51, 3)
@@ -136,16 +139,18 @@ plt.subplot(2,1,1)
 plt.plot(cut_fp_data.keys(), cut_fp_data.values())
 plt.plot(resampled_OP_time, resampled_OP_COP)
 #plt.plot(resampled_time, resampled_data)
-plt.legend(["Force Plate", "Openpose"])
-plt.title("COP")
+plt.legend(["Force Plate", "OpenPose"])
+plt.title("CoP")
 plt.xlabel("Time (ms)")
 plt.ylabel("COP (cm)")
 
 plt.subplot(2,1,2)
 plt.title("CoP FP vs Openpose")
 plt.scatter(cut_fp_data.values(), resampled_OP_COP, label="stars", color="green",marker="*", s=1)
-plt.xlabel("FP data")
-plt.ylabel("Openpose data")
+plt.xlabel("FP data (cm)")
+plt.ylabel("OpenPose data (cm)")
+
+plt.subplots_adjust(hspace=0.5)
 
 #axes = plt.gca()
 #axes.set_ylim([-15,15])
