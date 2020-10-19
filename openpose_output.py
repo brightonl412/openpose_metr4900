@@ -90,8 +90,8 @@ def get_keypoints(inputvid, model, progressUI):
         json_data = {}
         json_data['openpose'] = []
         date = datetime.datetime.now()
-        file_name = 'json_output/'+date.strftime("%x").replace('/','-') + "-" + date.strftime("%X") + '.json'
-
+        file_name = 'json_output/'+time.strftime("%y-%m-%d_%H:%M:%S", time.localtime(time.time()))+ '.json'
+        
         print("Generating Pose")
         while(cap.isOpened()):
             ret, frame = cap.read()

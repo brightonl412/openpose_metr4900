@@ -31,7 +31,7 @@ class progressView(QtWidgets.QWidget):
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
+        MainWindow.setObjectName("OpenPose Balance")
         MainWindow.resize(559, 468)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -289,6 +289,8 @@ class Ui_MainWindow(object):
             print(outputvid)
             print(file_name)
             vid_pose.generate_output(inputvid, model, orientation, gender, height, weight, outputvid, file_name)
+            self.progressView.close()
+            MainWindow.close()
     
 if __name__ == "__main__":
     import sys

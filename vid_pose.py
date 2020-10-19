@@ -741,8 +741,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         frame_num = 0
         max_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         #Apply Savistky-Golay Filter
-        filtered_comx = scipy.signal.savgol_filter(com_x_pos, 51, 3)
-        filtered_com_ang = scipy.signal.savgol_filter(com_ang, 51, 3)
+        filtered_comx = scipy.signal.savgol_filter(com_x_pos, 21, 3)
+        filtered_com_ang = scipy.signal.savgol_filter(com_ang, 21, 3)
         #Calculate frame velocities and accelerations
         # start, stop, velocity = calc_vel(filtered_comx, 5)
         # start2, stop2, acceleration = calc_acc(velocity, 5, start)
@@ -758,8 +758,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         #TODO: Filter pend_origin or just filter CoG and CoP
         #CoG = CoG_x(com_x_pos, pend_origin)
         #CoP = CoP_x(CoG, updated_ang_acc, inertias, force)
-        CoG = scipy.signal.savgol_filter(CoG_x(filtered_comx, pend_origin), 51, 3)
-        CoP = scipy.signal.savgol_filter(CoP_x(CoG, updated_ang_acc, inertias, force), 51, 3)
+        CoG = scipy.signal.savgol_filter(CoG_x(filtered_comx, pend_origin), 11, 3)
+        CoP = scipy.signal.savgol_filter(CoP_x(CoG, updated_ang_acc, inertias, force), 11, 3)
         CoG = list(CoG)
         CoP = list(CoP)
         # #a,b,ma = moving_average(CoG, 5, 5)
@@ -814,7 +814,13 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
                             'CoP_cm' : CoP_cm,
                             'CoG_cm' : CoG_cm,
                             'CoP_frame' : CoP,
-                            'CoG_frame' : CoG}
+                            'CoG_frame' : CoG,
+                            'com_x_pos' : com_x_pos,
+                            'com_ang' : com_ang,
+                            'inertias' : inertias,
+                            'force': force,
+                            'pend_origin': pend_origin,
+                            'pixel_cm': patient.pixel_cm}
         with open(file_name, 'w') as outfile:
             json.dump(data, outfile, indent=4)
 
@@ -877,8 +883,8 @@ def generate_output(inputvid, model, orientation, gender, height, weight, output
         print("Finished")
         cap.release()
         out.release()
-        cv2.destroyAllWindows
-        
+        cv2.destroyAllWindows()
+        return
     except Exception as e:
         print(e)
         sys.exit(-1)
